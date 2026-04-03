@@ -27,7 +27,7 @@
   <input type="hidden" name="page" value="1" />
   <div class="flex flex-col gap-3 sm:flex-row">
     <div class="flex-1">
-      <input type="text" name="q" id="searchInput" value="<%= filters.search %>" placeholder="Tìm theo tiêu đề hoặc nguồn..." class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm transition-all focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500" />
+      <input type="text" name="q" id="searchInput" value="<%= filters.search %>" placeholder="Tìm theo tiêu đề hoặc nguồn..." autocomplete="off" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm transition-all focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500" />
     </div>
     <div>
       <select name="dept" id="deptSelect" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm transition-all focus:border-brand-500 focus:ring-1 focus:ring-brand-500 sm:w-52">
@@ -38,7 +38,7 @@
       </select>
     </div>
     <div class="flex gap-2">
-      <noscript><button type="submit" class="rounded-md bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition-all hover:bg-brand-700 hover:shadow-md">Tìm</button></noscript>
+      <noscript><button type="submit" class="rounded-md bg-brand-600 px-4 py-2 text-sm font-semibold text-white">Tìm</button></noscript>
       <% if (filters.search || filters.tags.length || filters.deptId) { %>
         <a href="/docs" class="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 transition-all hover:bg-slate-100">Xóa lọc</a>
       <% } %>
@@ -59,7 +59,7 @@
   <div class="mt-4 flex flex-wrap gap-2" id="tagCloud">
     <% allTags.forEach(function (t) { %>
       <% var isSelected = filters.tags.indexOf(t) !== -1; %>
-      <button type="button" onclick="toggleTag('<%= t %>')" class="rounded-full border px-3 py-1 text-xs font-medium transition-all hover:border-brand-400 hover:bg-brand-50 hover:text-brand-700 <%= isSelected ? 'border-brand-500 bg-brand-100 text-brand-700' : 'border-slate-200 bg-white text-slate-600' %>">
+      <button type="button" data-tag="<%= t %>" class="tag-btn rounded-full border px-3 py-1 text-xs font-medium transition-all hover:border-brand-400 hover:bg-brand-50 hover:text-brand-700 <%= isSelected ? 'border-brand-500 bg-brand-100 text-brand-700' : 'border-slate-200 bg-white text-slate-600' %>">
         <%= t %> <span class="opacity-40">(<%= tagCounts[t] || 0 %>)</span>
       </button>
     <% }); %>
@@ -82,13 +82,15 @@
         <% if (d.tags && d.tags.length) { %>
           <div class="mt-1.5 flex flex-wrap gap-1">
             <% d.tags.forEach(function (t) { %>
-              <button type="button" onclick="toggleTag('<%= t %>')" class="rounded-full bg-brand-50 px-2 py-0.5 text-xs text-brand-600 transition-all hover:bg-brand-100"><%= t %></button>
+              <button type="button" data-tag="<%= t %>" class="tag-btn rounded-full bg-brand-50 px-2 py-0.5 text-xs text-brand-600 transition-all hover:bg-brand-100"><%= t %></button>
             <% }); %>
           </div>
         <% } %>
       </div>
-      <div class="flex gap-3 text-sm opacity-60 transition-all group-hover:opacity-100">
-        <a href="/docs/<%= d.id %>/download" class="text-slate-600 transition-all hover:text-slate-800 hover:underline">Tải</a>
+      <div class="flex items-center gap-1 opacity-60 transition-all group-hover:opacity-100">
+        <a href="/docs/<%= d.id %>/download" class="rounded p-1.5 text-slate-400 transition-all hover:bg-slate-100 hover:text-slate-700" title="Tải file gốc">
+          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+        </a>
       </div>
     </li>
   <% }); %>
@@ -96,36 +98,81 @@
 
 <script>
 (function () {
-  var form = document.getElementById('filterForm');
-  var searchInput = document.getElementById('searchInput');
-  var deptSelect = document.getElementById('deptSelect');
-  var tagsInput = document.getElementById('tagsInput');
-  var timer;
+  var timer, fetchCtrl;
+  var currentPS = '<%= pagination.pageSize %>';
 
-  function submit() { form.submit(); }
+  function buildUrl() {
+    var p = new URLSearchParams();
+    var q = document.getElementById('searchInput').value.trim();
+    var tags = document.getElementById('tagsInput').value;
+    var dept = document.getElementById('deptSelect').value;
+    if (q) p.set('q', q);
+    if (tags) p.set('tags', tags);
+    if (dept) p.set('dept', dept);
+    p.set('ps', currentPS);
+    p.set('page', '1');
+    return '/docs?' + p.toString();
+  }
 
-  searchInput.addEventListener('input', function () {
-    clearTimeout(timer);
-    timer = setTimeout(submit, 400);
-  });
+  function liveUpdate() {
+    var searchInput = document.getElementById('searchInput');
+    var cursorPos = searchInput.selectionStart;
+    var searchVal = searchInput.value;
+    var url = buildUrl();
 
-  deptSelect.addEventListener('change', submit);
+    if (fetchCtrl) fetchCtrl.abort();
+    fetchCtrl = new AbortController();
 
-  window.toggleTag = function (tag) {
-    var current = tagsInput.value ? tagsInput.value.split(',').filter(Boolean) : [];
-    var idx = current.indexOf(tag);
-    if (idx >= 0) current.splice(idx, 1);
-    else current.push(tag);
-    tagsInput.value = current.join(',');
-    form.querySelector('input[name="page"]').value = '1';
-    submit();
-  };
+    history.replaceState(null, '', url);
 
-  // Refocus search input after page reload
-  <% if (filters.search) { %>
-  searchInput.focus();
-  searchInput.setSelectionRange(searchInput.value.length, searchInput.value.length);
-  <% } %>
+    fetch(url, { signal: fetchCtrl.signal })
+      .then(function (r) { return r.text(); })
+      .then(function (html) {
+        var parser = new DOMParser();
+        var newDoc = parser.parseFromString(html, 'text/html');
+        var newMain = newDoc.querySelector('main');
+        if (!newMain) return;
+        document.querySelector('main').innerHTML = newMain.innerHTML;
+        initPage();
+        var inp = document.getElementById('searchInput');
+        if (inp) {
+          inp.value = searchVal;
+          inp.focus();
+          inp.setSelectionRange(cursorPos, cursorPos);
+        }
+      })
+      .catch(function (e) {
+        if (e.name !== 'AbortError') location.href = url;
+      });
+  }
+
+  function initPage() {
+    var searchInput = document.getElementById('searchInput');
+    var deptSelect = document.getElementById('deptSelect');
+    var tagsInput = document.getElementById('tagsInput');
+
+    searchInput.addEventListener('input', function () {
+      clearTimeout(timer);
+      timer = setTimeout(liveUpdate, 500);
+    });
+
+    deptSelect.addEventListener('change', liveUpdate);
+
+    document.querySelectorAll('.tag-btn').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var tag = this.getAttribute('data-tag');
+        var current = tagsInput.value ? tagsInput.value.split(',').filter(Boolean) : [];
+        var idx = current.indexOf(tag);
+        if (idx >= 0) current.splice(idx, 1);
+        else current.push(tag);
+        tagsInput.value = current.join(',');
+        liveUpdate();
+      });
+    });
+  }
+
+  initPage();
 })();
 </script>
 <%- include('../partials/footer') %>
