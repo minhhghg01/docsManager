@@ -1,9 +1,15 @@
 <%- include('../partials/header') %>
 <div class="flex flex-wrap items-center justify-between gap-3">
   <h1 class="text-2xl font-bold text-slate-800">Tài liệu</h1>
-  <a href="/admin/documents/new" class="rounded-md bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition-all hover:bg-brand-700 hover:shadow-md">Thêm</a>
+  <a href="/admin/documents/new" class="inline-flex items-center gap-1.5 rounded-md bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition-all hover:bg-brand-700 hover:shadow-md">
+    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+    Thêm
+  </a>
 </div>
 <ul class="mt-8 divide-y divide-slate-200 rounded-xl border border-slate-200 bg-white shadow-sm">
+  <% if (!docs.length) { %>
+    <li class="px-4 py-8 text-center text-slate-500">Chưa có tài liệu.</li>
+  <% } %>
   <% docs.forEach(function (d) { %>
     <li class="flex flex-wrap items-center justify-between gap-3 px-4 py-4 transition-all hover:bg-slate-50">
       <div>
@@ -29,8 +35,6 @@
     </li>
   <% }); %>
 </ul>
-<% if (!docs.length) { %>
-  <p class="mt-6 text-slate-500">Chưa có tài liệu.</p>
-<% } %>
+<%- include('../partials/pagination', { pg }) %>
 <p class="mt-6"><a href="/admin/dashboard" class="text-brand-600 transition-all hover:text-brand-800 hover:underline">← Quản trị</a></p>
 <%- include('../partials/footer') %>

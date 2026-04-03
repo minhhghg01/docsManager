@@ -11,11 +11,11 @@
 >
   <div>
     <label class="block text-sm font-medium text-slate-700">Tiêu đề</label>
-    <input name="title" required value="<%= doc ? doc.title : '' %>" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2" />
+    <input name="title" required value="<%= doc ? doc.title : '' %>" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 transition-all focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500" />
   </div>
   <div>
     <label class="block text-sm font-medium text-slate-700">Nguồn (tên khoa/phòng do admin nhập)</label>
-    <input name="source_label" required value="<%= doc ? doc.source_label : '' %>" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2" placeholder="Ví dụ: Phòng KHCN" />
+    <input name="source_label" required value="<%= doc ? doc.source_label : '' %>" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 transition-all focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500" placeholder="Ví dụ: Phòng KHCN" />
   </div>
   <div class="flex items-center gap-2">
     <input type="checkbox" name="is_public" value="1" id="pub" <%= doc && doc.is_public ? 'checked' : '' %> class="h-4 w-4 rounded border-slate-300" />
@@ -23,7 +23,7 @@
   </div>
   <div>
     <label class="block text-sm font-medium text-slate-700">Thuộc khoa/phòng (để user khoa xem nội bộ)</label>
-    <select name="owner_khoa_id" class="mt-1 w-full max-w-md rounded-md border border-slate-300 px-3 py-2">
+    <select name="owner_khoa_id" class="mt-1 w-full max-w-md rounded-md border border-slate-300 px-3 py-2 transition-all focus:border-brand-500 focus:ring-1 focus:ring-brand-500">
       <option value="">— Không gán —</option>
       <% departments.forEach(function (k) { %>
         <option value="<%= k.id %>" <%= doc && doc.owner_khoa_id === k.id ? 'selected' : '' %>><%= k.name %></option>
@@ -45,7 +45,7 @@
   </div>
   <div>
     <label class="block text-sm font-medium text-slate-700">Tags (phân cách bằng dấu phẩy)</label>
-    <input name="tags" value="<%= doc && doc.tags ? doc.tags.join(', ') : '' %>" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 transition-all focus:border-brand-500 focus:ring-1 focus:ring-brand-500" placeholder="Ví dụ: quy trình, biểu mẫu, hướng dẫn" />
+    <input name="tags" value="<%= doc && doc.tags ? doc.tags.join(', ') : '' %>" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 transition-all focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500" placeholder="Ví dụ: quy trình, biểu mẫu, hướng dẫn" />
   </div>
   <div>
     <label class="block text-sm font-medium text-slate-700">File <%= doc ? '(để trống nếu giữ file cũ)' : '' %></label>

@@ -1,0 +1,52 @@
+<%
+var _sep = pg.base.includes('?') ? '&' : '?';
+function pgUrl(p, ps) {
+  return pg.base + _sep + 'ps=' + (ps !== undefined ? ps : pg.pageSize) + '&page=' + p;
+}
+%>
+<% if (pg.totalCount > 0) { %>
+<div class="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 shadow-sm">
+  <div class="flex items-center gap-2">
+    <span>Hiển thị <strong class="text-slate-800"><%= pg.showing %></strong> / <strong class="text-slate-800"><%= pg.totalCount %></strong></span>
+    <span class="text-slate-300">·</span>
+    <select onchange="location.href=this.value" class="rounded border border-slate-300 px-2 py-1 text-xs transition-all focus:border-brand-500 focus:ring-1 focus:ring-brand-500">
+      <% [10, 50, 200, 1000, 'all'].forEach(function(s) { %>
+        <option value="<%= pgUrl(1, s) %>" <%= String(pg.pageSize) === String(s) ? 'selected' : '' %>><%= s === 'all' ? 'Tất cả' : s %> / trang</option>
+      <% }); %>
+    </select>
+  </div>
+  <% if (pg.totalPages > 1) { %>
+  <div class="flex items-center gap-1">
+    <% if (pg.page > 1) { %>
+      <a href="<%= pgUrl(pg.page - 1) %>" class="rounded border border-slate-300 px-2.5 py-1 transition-all hover:bg-slate-100" title="Trang trước">←</a>
+    <% } else { %>
+      <span class="rounded border border-slate-200 px-2.5 py-1 text-slate-300">←</span>
+    <% } %>
+    <%
+      var startP = Math.max(1, pg.page - 2);
+      var endP = Math.min(pg.totalPages, pg.page + 2);
+    %>
+    <% if (startP > 1) { %>
+      <a href="<%= pgUrl(1) %>" class="rounded px-2.5 py-1 transition-all hover:bg-slate-100">1</a>
+      <% if (startP > 2) { %><span class="px-1 text-slate-400">…</span><% } %>
+    <% } %>
+    <% for (var _p = startP; _p <= endP; _p++) { %>
+      <% if (_p === pg.page) { %>
+        <span class="rounded bg-brand-600 px-2.5 py-1 font-medium text-white"><%= _p %></span>
+      <% } else { %>
+        <a href="<%= pgUrl(_p) %>" class="rounded px-2.5 py-1 transition-all hover:bg-slate-100"><%= _p %></a>
+      <% } %>
+    <% } %>
+    <% if (endP < pg.totalPages) { %>
+      <% if (endP < pg.totalPages - 1) { %><span class="px-1 text-slate-400">…</span><% } %>
+      <a href="<%= pgUrl(pg.totalPages) %>" class="rounded px-2.5 py-1 transition-all hover:bg-slate-100"><%= pg.totalPages %></a>
+    <% } %>
+    <% if (pg.page < pg.totalPages) { %>
+      <a href="<%= pgUrl(pg.page + 1) %>" class="rounded border border-slate-300 px-2.5 py-1 transition-all hover:bg-slate-100" title="Trang sau">→</a>
+    <% } else { %>
+      <span class="rounded border border-slate-200 px-2.5 py-1 text-slate-300">→</span>
+    <% } %>
+  </div>
+  <% } %>
+</div>
+<% } %>

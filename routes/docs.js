@@ -9,49 +9,93 @@ const router = express.Router();
 
 const UPLOAD_ROOT = path.join(__dirname, '..', 'public', 'uploads');
 
+function simpleMsg(msg) {
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"/>
+<style>body{font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f8fafc;color:#334155}
+.box{text-align:center;padding:40px 24px}.box p{font-size:14px;color:#64748b}</style>
+</head><body><div class="box"><p>${msg}</p></div></body></html>`;
+}
+
 function getDocById(id) {
   const row = db.prepare('SELECT * FROM documents WHERE id = ?').get(id);
   return documentWithShares(db, row);
 }
 
-function listVisibleDocs(user, { search, tag, deptId } = {}) {
-  let baseWhere = '';
+function buildVisibilityClause(user) {
   const params = [];
-
+  let where;
+  let needJoin = false;
   if (user && user.role === 'admin') {
-    baseWhere = 'WHERE 1=1';
+    where = 'WHERE 1=1';
   } else if (!user) {
-    baseWhere = 'WHERE d.is_public = 1';
+    where = 'WHERE d.is_public = 1';
   } else {
-    const kid = user.khoa_id;
-    baseWhere = `WHERE (d.is_public = 1 OR d.owner_khoa_id = ? OR s.khoa_id = ?)`;
-    params.push(kid, kid);
+    where = 'WHERE (d.is_public = 1 OR d.owner_khoa_id = ? OR s.khoa_id = ?)';
+    params.push(user.khoa_id, user.khoa_id);
+    needJoin = true;
   }
+  return { where, params, needJoin };
+}
+
+function listVisibleDocs(user, { search, tags, deptId } = {}) {
+  const { where, params, needJoin } = buildVisibilityClause(user);
+  let baseWhere = where;
+  const p = [...params];
 
   if (search) {
-    baseWhere += ` AND (d.title LIKE ? OR d.source_label LIKE ?)`;
+    baseWhere += ' AND (d.title LIKE ? OR d.source_label LIKE ?)';
     const q = `%${search}%`;
-    params.push(q, q);
+    p.push(q, q);
   }
 
-  if (tag) {
-    baseWhere += ` AND EXISTS (SELECT 1 FROM document_tags dt WHERE dt.document_id = d.id AND dt.tag = ?)`;
-    params.push(tag);
+  if (tags && tags.length) {
+    const ph = tags.map(() => '?').join(',');
+    baseWhere += ` AND EXISTS (SELECT 1 FROM document_tags dt WHERE dt.document_id = d.id AND dt.tag IN (${ph}))`;
+    p.push(...tags);
   }
 
   if (deptId) {
-    baseWhere += ` AND d.owner_khoa_id = ?`;
-    params.push(parseInt(deptId, 10));
+    baseWhere += ' AND d.owner_khoa_id = ?';
+    p.push(parseInt(deptId, 10));
   }
 
-  const needJoin = (!user || (user && user.role !== 'admin'));
   const joinClause = needJoin
     ? 'LEFT JOIN document_shares s ON s.document_id = d.id'
     : '';
-
   const sql = `SELECT DISTINCT d.* FROM documents d ${joinClause} ${baseWhere} ORDER BY d.created_at DESC`;
-  const rows = db.prepare(sql).all(...params);
+  const rows = db.prepare(sql).all(...p);
   return rows.map((r) => documentWithShares(db, r));
+}
+
+function getTagCounts(user) {
+  const { where, params, needJoin } = buildVisibilityClause(user);
+  const joinClause = needJoin
+    ? 'LEFT JOIN document_shares s ON s.document_id = d.id'
+    : '';
+  const sql = `SELECT dt.tag, COUNT(DISTINCT d.id) AS cnt
+    FROM documents d ${joinClause}
+    JOIN document_tags dt ON dt.document_id = d.id
+    ${where}
+    GROUP BY dt.tag ORDER BY dt.tag`;
+  const rows = db.prepare(sql).all(...params);
+  const counts = {};
+  rows.forEach((r) => { counts[r.tag] = r.cnt; });
+  return counts;
+}
+
+function getDeptCounts(user) {
+  const { where, params, needJoin } = buildVisibilityClause(user);
+  const joinClause = needJoin
+    ? 'LEFT JOIN document_shares s ON s.document_id = d.id'
+    : '';
+  const sql = `SELECT d.owner_khoa_id AS kid, COUNT(DISTINCT d.id) AS cnt
+    FROM documents d ${joinClause}
+    ${where} AND d.owner_khoa_id IS NOT NULL
+    GROUP BY d.owner_khoa_id`;
+  const rows = db.prepare(sql).all(...params);
+  const counts = {};
+  rows.forEach((r) => { counts[r.kid] = r.cnt; });
+  return counts;
 }
 
 function getAllTags() {
@@ -67,12 +111,45 @@ function getAllDepartments() {
 
 router.get('/', (req, res) => {
   const search = (req.query.q || '').trim();
-  const tag = (req.query.tag || '').trim();
+  const tagsParam = (req.query.tags || '').trim();
+  const selectedTags = tagsParam
+    ? tagsParam.split(',').map((t) => t.trim()).filter(Boolean)
+    : [];
   const deptId = req.query.dept || '';
+  const psRaw = req.query.ps || '10';
+  const pageSize = psRaw === 'all' ? 0 : parseInt(psRaw, 10) || 10;
+  const page = parseInt(req.query.page || '1', 10) || 1;
 
-  const docs = listVisibleDocs(req.user, { search, tag, deptId });
+  const allDocs = listVisibleDocs(req.user, {
+    search,
+    tags: selectedTags,
+    deptId
+  });
+  const totalCount = allDocs.length;
+
+  let docs, totalPages, currentPage;
+  if (pageSize > 0) {
+    totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+    currentPage = Math.max(1, Math.min(page, totalPages));
+    const start = (currentPage - 1) * pageSize;
+    docs = allDocs.slice(start, start + pageSize);
+  } else {
+    totalPages = 1;
+    currentPage = 1;
+    docs = allDocs;
+  }
+
   const allTags = getAllTags();
   const departments = getAllDepartments();
+  const tagCounts = getTagCounts(req.user);
+  const deptCounts = getDeptCounts(req.user);
+
+  const qp = new URLSearchParams();
+  if (search) qp.set('q', search);
+  if (selectedTags.length) qp.set('tags', selectedTags.join(','));
+  if (deptId) qp.set('dept', deptId);
+  const qs = qp.toString();
+  const paginationBase = '/docs' + (qs ? '?' + qs : '');
 
   res.render('docs/list', {
     title: 'Tài liệu',
@@ -80,25 +157,19 @@ router.get('/', (req, res) => {
     isAdmin: req.user?.role === 'admin',
     allTags,
     departments,
-    filters: { search, tag, deptId }
+    tagCounts,
+    deptCounts,
+    filters: { search, tags: selectedTags, deptId },
+    pagination: {
+      page: currentPage,
+      totalPages,
+      totalCount,
+      pageSize: psRaw,
+      showing: docs.length,
+      base: paginationBase
+    }
   });
 });
-
-function inlineMsg(title, msg, docId) {
-  return `<!DOCTYPE html><html lang="vi"><head><meta charset="UTF-8"/>
-<style>*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
-display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f8fafc;color:#334155}
-.box{text-align:center;padding:40px 24px}
-.box h2{font-size:18px;margin-bottom:8px}
-.box p{font-size:14px;color:#64748b;margin-bottom:16px}
-.box a{display:inline-block;padding:8px 20px;background:#0284c7;color:#fff;border-radius:6px;text-decoration:none;font-size:14px}
-.box a:hover{background:#0369a1}
-</style></head><body><div class="box">
-<h2>${title}</h2><p>${msg}</p>
-<a href="/docs/${docId}/download">Tải file gốc</a>
-</div></body></html>`;
-}
 
 router.get('/:id/view', async (req, res, next) => {
   const doc = getDocById(req.params.id);
@@ -107,16 +178,12 @@ router.get('/:id/view', async (req, res, next) => {
     if (!req.user) {
       return res.redirect('/login?next=' + encodeURIComponent(req.originalUrl));
     }
-    return res.type('html').status(403).send(
-      inlineMsg('Không có quyền', 'Bạn không được xem tài liệu này.', req.params.id)
-    );
+    return res.type('html').status(403).send(simpleMsg('Bạn không có quyền xem tài liệu này.'));
   }
 
   const filePath = path.join(UPLOAD_ROOT, doc.stored_filename);
   if (!fs.existsSync(filePath)) {
-    return res.type('html').status(404).send(
-      inlineMsg('Không tìm thấy', 'File không còn trên máy chủ.', doc.id)
-    );
+    return res.type('html').status(404).send(simpleMsg('File không còn trên máy chủ.'));
   }
 
   if (isPdf(doc.original_filename)) {
@@ -126,11 +193,7 @@ router.get('/:id/view', async (req, res, next) => {
 
   if (!isViewable(doc.original_filename)) {
     return res.type('html').send(
-      inlineMsg(
-        'Chưa hỗ trợ xem trực tiếp',
-        `Định dạng ${path.extname(doc.original_filename)} chưa hỗ trợ xem trong trình duyệt.`,
-        doc.id
-      )
+      simpleMsg('Định dạng này chưa hỗ trợ xem trong trình duyệt. Vui lòng tải xuống.')
     );
   }
 
@@ -140,22 +203,9 @@ router.get('/:id/view', async (req, res, next) => {
   } catch (e) {
     console.error('Preview error:', e.message);
     return res.type('html').status(500).send(
-      inlineMsg('Lỗi xem tài liệu', 'Không thể hiển thị file.', doc.id)
+      simpleMsg('Không thể hiển thị file. Vui lòng tải file gốc để xem.')
     );
   }
-});
-
-/** Serve raw PDF binary cho PDF.js viewer */
-router.get('/:id/view/raw', (req, res, next) => {
-  const doc = getDocById(req.params.id);
-  if (!doc) return next();
-  if (!canViewDocument(req.user, doc)) {
-    return res.status(403).send('Forbidden');
-  }
-  const filePath = path.join(UPLOAD_ROOT, doc.stored_filename);
-  if (!fs.existsSync(filePath)) return res.status(404).send('Not found');
-  res.type('pdf');
-  res.sendFile(filePath);
 });
 
 router.get('/:id/download', (req, res, next) => {

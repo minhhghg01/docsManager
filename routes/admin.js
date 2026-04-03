@@ -46,6 +46,27 @@ function parseTags(body) {
   )];
 }
 
+function paginate(items, query) {
+  const psRaw = query.ps || '10';
+  const pageSize = psRaw === 'all' ? 0 : parseInt(psRaw, 10) || 10;
+  const page = parseInt(query.page || '1', 10) || 1;
+  const totalCount = items.length;
+  if (pageSize <= 0) {
+    return {
+      items,
+      pg: { page: 1, totalPages: 1, totalCount, pageSize: 'all', showing: totalCount }
+    };
+  }
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  const p = Math.max(1, Math.min(page, totalPages));
+  const start = (p - 1) * pageSize;
+  const sliced = items.slice(start, start + pageSize);
+  return {
+    items: sliced,
+    pg: { page: p, totalPages, totalCount, pageSize: psRaw, showing: sliced.length }
+  };
+}
+
 function saveTags(docId, tags) {
   db.prepare('DELETE FROM document_tags WHERE document_id = ?').run(docId);
   const ins = db.prepare(
@@ -74,8 +95,10 @@ router.get('/dashboard', (req, res) => {
 
 /* ——— Khoa phòng ——— */
 router.get('/departments', (req, res) => {
-  const departments = db.prepare('SELECT * FROM departments ORDER BY name').all();
-  res.render('admin/departments', { title: 'Khoa / phòng', departments, error: null });
+  const all = db.prepare('SELECT * FROM departments ORDER BY name').all();
+  const { items: departments, pg } = paginate(all, req.query);
+  pg.base = '/admin/departments';
+  res.render('admin/departments', { title: 'Khoa / phòng', departments, allDepartments: all, pg, error: null });
 });
 
 router.post('/departments', express.urlencoded({ extended: true }), (req, res) => {
@@ -138,7 +161,7 @@ router.post('/departments/:id/edit', express.urlencoded({ extended: true }), (re
 
 /* ——— Users ——— */
 router.get('/users', (req, res) => {
-  const users = db
+  const all = db
     .prepare(
       `SELECT u.*, d.name AS khoa_name FROM users u
        LEFT JOIN departments d ON d.id = u.khoa_id
@@ -146,10 +169,13 @@ router.get('/users', (req, res) => {
     )
     .all();
   const departments = db.prepare('SELECT * FROM departments ORDER BY name').all();
+  const { items: users, pg } = paginate(all, req.query);
+  pg.base = '/admin/users';
   res.render('admin/users', {
     title: 'Tài khoản',
     users,
     departments,
+    pg,
     error: null
   });
 });
@@ -218,9 +244,11 @@ router.post('/users/:id/password', express.urlencoded({ extended: true }), (req,
 /* ——— Documents ——— */
 router.get('/documents', (req, res) => {
   const rows = db.prepare(`SELECT * FROM documents ORDER BY created_at DESC`).all();
-  const docs = rows.map((r) => documentWithShares(db, r));
+  const allDocs = rows.map((r) => documentWithShares(db, r));
+  const { items: docs, pg } = paginate(allDocs, req.query);
+  pg.base = '/admin/documents';
   const departments = db.prepare('SELECT * FROM departments ORDER BY name').all();
-  res.render('admin/documents', { title: 'Tài liệu (quản trị)', docs, departments });
+  res.render('admin/documents', { title: 'Tài liệu (quản trị)', docs, pg, departments });
 });
 
 router.get('/documents/new', (req, res) => {
