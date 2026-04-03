@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title><%= typeof title !== 'undefined' ? title + ' · ' : '' %>Quản lý Tài liệu</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: { 50: '#f0f9ff', 100: '#e0f2fe', 500: '#0ea5e9', 600: '#0284c7', 700: '#0369a1', 900: '#0c4a6e' }
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    .transition-all{transition-property:all;transition-timing-function:cubic-bezier(.4,0,.2,1);transition-duration:200ms}
+    .hover-lift:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,.08)}
+    .hover-scale:hover{transform:scale(1.02)}
+  </style>
+  <link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body class="flex min-h-screen flex-col bg-slate-50 text-slate-900 antialiased">
+  <header class="border-b border-slate-200 bg-white shadow-sm">
+    <div class="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4 px-4 py-4">
+      <a href="/docs" class="text-lg font-semibold text-brand-700 transition-all hover:text-brand-900">Quản lý Tài liệu</a>
+      <nav class="flex flex-wrap items-center gap-3 text-sm">
+        <a href="/docs" class="text-slate-600 transition-all hover:text-brand-600">Tài liệu</a>
+        <% if (user && user.role === 'admin') { %>
+          <a href="/admin/dashboard" class="text-slate-600 transition-all hover:text-brand-600">Quản trị</a>
+        <% } %>
+        <% if (user) { %>
+          <span class="text-slate-400">|</span>
+          <span class="text-slate-500"><%= user.username %><% if (user.khoa_name) { %> · <%= user.khoa_name %><% } %></span>
+          <form action="/logout" method="post" class="inline">
+            <button type="submit" class="rounded-md bg-slate-200 px-3 py-1.5 font-medium text-slate-800 transition-all hover:bg-red-100 hover:text-red-700">Đăng xuất</button>
+          </form>
+        <% } else { %>
+          <a href="/login" class="rounded-md bg-brand-600 px-3 py-1.5 font-medium text-white transition-all hover:bg-brand-700 hover:shadow-md">Đăng nhập</a>
+        <% } %>
+      </nav>
+    </div>
+  </header>
+  <main class="mx-auto w-full max-w-5xl flex-1 px-4 py-8">

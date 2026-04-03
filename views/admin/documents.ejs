@@ -1,0 +1,36 @@
+<%- include('../partials/header') %>
+<div class="flex flex-wrap items-center justify-between gap-3">
+  <h1 class="text-2xl font-bold text-slate-800">Tài liệu</h1>
+  <a href="/admin/documents/new" class="rounded-md bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition-all hover:bg-brand-700 hover:shadow-md">Thêm</a>
+</div>
+<ul class="mt-8 divide-y divide-slate-200 rounded-xl border border-slate-200 bg-white shadow-sm">
+  <% docs.forEach(function (d) { %>
+    <li class="flex flex-wrap items-center justify-between gap-3 px-4 py-4 transition-all hover:bg-slate-50">
+      <div>
+        <span class="font-medium"><%= d.title %></span>
+        <p class="text-sm text-slate-500">Nguồn: <%= d.source_label %>
+          <% if (d.is_public) { %><span class="ml-2 text-emerald-700">[công khai]</span><% } %>
+        </p>
+        <% if (d.tags && d.tags.length) { %>
+          <div class="mt-1 flex flex-wrap gap-1">
+            <% d.tags.forEach(function (t) { %>
+              <span class="rounded-full bg-brand-100 px-2 py-0.5 text-xs text-brand-700"><%= t %></span>
+            <% }); %>
+          </div>
+        <% } %>
+      </div>
+      <div class="flex gap-3 text-sm">
+        <a href="/docs/<%= d.id %>" class="text-brand-600 transition-all hover:text-brand-800 hover:underline">Xem</a>
+        <a href="/admin/documents/<%= d.id %>/edit" class="text-slate-600 transition-all hover:text-slate-800 hover:underline">Sửa</a>
+        <form method="post" action="/admin/documents/<%= d.id %>/delete" class="inline" onsubmit="return confirm('Xóa tài liệu?');">
+          <button type="submit" class="text-red-600 transition-all hover:text-red-800 hover:underline">Xóa</button>
+        </form>
+      </div>
+    </li>
+  <% }); %>
+</ul>
+<% if (!docs.length) { %>
+  <p class="mt-6 text-slate-500">Chưa có tài liệu.</p>
+<% } %>
+<p class="mt-6"><a href="/admin/dashboard" class="text-brand-600 transition-all hover:text-brand-800 hover:underline">← Quản trị</a></p>
+<%- include('../partials/footer') %>

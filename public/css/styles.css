@@ -1,0 +1,2 @@
+/* Tùy chọn: ghi đè CSS. CDN Tailwind trong layout đã đủ cho dev.
+   Production: chạy `npm run build:css` và có thể bỏ script CDN trong `views/partials/header.ejs`. */

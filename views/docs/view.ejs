@@ -1,0 +1,30 @@
+<%- include('../partials/header') %>
+<div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+  <div>
+    <h1 class="text-2xl font-bold text-slate-800"><%= doc.title %></h1>
+    <p class="text-sm text-slate-500">Nguồn: <%= doc.source_label %> · <%= doc.original_filename %></p>
+    <% if (doc.tags && doc.tags.length) { %>
+      <div class="mt-1.5 flex flex-wrap gap-1">
+        <% doc.tags.forEach(function (t) { %>
+          <a href="/docs?tag=<%= encodeURIComponent(t) %>" class="rounded-full bg-brand-50 px-2 py-0.5 text-xs text-brand-600 transition-all hover:bg-brand-100"><%= t %></a>
+        <% }); %>
+      </div>
+    <% } %>
+  </div>
+  <div class="flex gap-2">
+    <a href="/docs/<%= doc.id %>/download" class="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition-all hover:bg-slate-100 hover:shadow-sm">Tải file gốc</a>
+    <a href="/docs" class="rounded-md bg-slate-200 px-3 py-2 text-sm font-medium text-slate-800 transition-all hover:bg-slate-300">Danh sách</a>
+  </div>
+</div>
+<div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+  <iframe
+    title="Xem tài liệu"
+    src="/docs/<%= doc.id %>/view"
+    class="block h-[85vh] w-full border-0"
+    allow="fullscreen"
+  ></iframe>
+</div>
+<% if (user && user.role === 'admin') { %>
+  <p class="mt-2"><a href="/admin/documents/<%= doc.id %>/edit" class="text-sm font-medium text-brand-600 transition-all hover:text-brand-800 hover:underline">Sửa / chia sẻ (quản trị)</a></p>
+<% } %>
+<%- include('../partials/footer') %>

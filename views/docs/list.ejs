@@ -1,0 +1,94 @@
+<%- include('../partials/header') %>
+<div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+  <h1 class="text-2xl font-bold text-slate-800">Tài liệu</h1>
+  <% if (isAdmin) { %>
+    <a href="/admin/documents/new" class="inline-flex items-center justify-center rounded-md bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition-all hover:bg-brand-700 hover:shadow-md">Thêm tài liệu</a>
+  <% } %>
+</div>
+<p class="mt-2 text-sm text-slate-600">
+  <% if (!user) { %>
+    Bạn đang xem tài liệu <strong>công khai</strong>. Đăng nhập để xem thêm tài liệu theo khoa/phòng.
+  <% } else if (user.role === 'admin') { %>
+    Bạn là quản trị — hiển thị mọi tài liệu.
+  <% } else { %>
+    Hiển thị tài liệu công khai, của khoa bạn và được chia sẻ.
+  <% } %>
+</p>
+
+<!-- Search & Filter -->
+<form method="get" action="/docs" class="mt-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+  <div class="flex flex-col gap-3 sm:flex-row">
+    <div class="flex-1">
+      <input type="text" name="q" value="<%= filters.search %>" placeholder="Tìm theo tiêu đề hoặc nguồn..." class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm transition-all focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500" />
+    </div>
+    <div>
+      <select name="tag" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm transition-all focus:border-brand-500 focus:ring-1 focus:ring-brand-500 sm:w-40">
+        <option value="">— Tất cả tag —</option>
+        <% allTags.forEach(function (t) { %>
+          <option value="<%= t %>" <%= filters.tag === t ? 'selected' : '' %>><%= t %></option>
+        <% }); %>
+      </select>
+    </div>
+    <div>
+      <select name="dept" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm transition-all focus:border-brand-500 focus:ring-1 focus:ring-brand-500 sm:w-48">
+        <option value="">— Tất cả khoa/phòng —</option>
+        <% departments.forEach(function (d) { %>
+          <option value="<%= d.id %>" <%= String(filters.deptId) === String(d.id) ? 'selected' : '' %>><%= d.name %></option>
+        <% }); %>
+      </select>
+    </div>
+    <div class="flex gap-2">
+      <button type="submit" class="rounded-md bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition-all hover:bg-brand-700 hover:shadow-md">Tìm</button>
+      <% if (filters.search || filters.tag || filters.deptId) { %>
+        <a href="/docs" class="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 transition-all hover:bg-slate-100">Xóa lọc</a>
+      <% } %>
+    </div>
+  </div>
+  <% if (filters.search || filters.tag || filters.deptId) { %>
+    <p class="mt-2 text-xs text-slate-500">
+      Tìm thấy <strong><%= docs.length %></strong> tài liệu
+      <% if (filters.search) { %> · từ khóa "<%= filters.search %>"<% } %>
+      <% if (filters.tag) { %> · tag "<%= filters.tag %>"<% } %>
+      <% if (filters.deptId) { %><% var deptName = departments.find(function(d){ return String(d.id) === String(filters.deptId); }); %><% if (deptName) { %> · khoa "<%= deptName.name %>"<% } %><% } %>
+    </p>
+  <% } %>
+</form>
+
+<!-- Tag cloud -->
+<% if (allTags.length) { %>
+  <div class="mt-4 flex flex-wrap gap-2">
+    <% allTags.forEach(function (t) { %>
+      <a href="/docs?tag=<%= encodeURIComponent(t) %>" class="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600 transition-all hover:border-brand-400 hover:bg-brand-50 hover:text-brand-700 <%= filters.tag === t ? 'border-brand-500 bg-brand-50 text-brand-700' : '' %>"><%= t %></a>
+    <% }); %>
+  </div>
+<% } %>
+
+<!-- Documents list -->
+<ul class="mt-6 divide-y divide-slate-200 rounded-xl border border-slate-200 bg-white shadow-sm">
+  <% if (!docs.length) { %>
+    <li class="px-4 py-8 text-center text-slate-500">Không có tài liệu phù hợp.</li>
+  <% } %>
+  <% docs.forEach(function (d) { %>
+    <li class="group flex flex-wrap items-center justify-between gap-3 px-4 py-4 transition-all hover:bg-slate-50">
+      <div class="flex-1 min-w-0">
+        <a href="/docs/<%= d.id %>" class="font-medium text-brand-700 transition-all hover:text-brand-900 hover:underline"><%= d.title %></a>
+        <p class="text-sm text-slate-500">
+          Nguồn: <%= d.source_label %>
+          <% if (d.is_public) { %><span class="ml-2 rounded bg-emerald-100 px-2 py-0.5 text-xs text-emerald-800">Công khai</span><% } %>
+        </p>
+        <% if (d.tags && d.tags.length) { %>
+          <div class="mt-1.5 flex flex-wrap gap-1">
+            <% d.tags.forEach(function (t) { %>
+              <a href="/docs?tag=<%= encodeURIComponent(t) %>" class="rounded-full bg-brand-50 px-2 py-0.5 text-xs text-brand-600 transition-all hover:bg-brand-100"><%= t %></a>
+            <% }); %>
+          </div>
+        <% } %>
+      </div>
+      <div class="flex gap-3 text-sm opacity-60 transition-all group-hover:opacity-100">
+        <a href="/docs/<%= d.id %>" class="text-brand-600 transition-all hover:text-brand-800 hover:underline">Xem</a>
+        <a href="/docs/<%= d.id %>/download" class="text-slate-600 transition-all hover:text-slate-800 hover:underline">Tải</a>
+      </div>
+    </li>
+  <% }); %>
+</ul>
+<%- include('../partials/footer') %>
