@@ -142,7 +142,8 @@ function initSchema(db) {
     )
   `);
   try {
-    db.exec(`ALTER TABLE documents ADD COLUMN updated_at TEXT DEFAULT (datetime('now'))`);
+    db.exec(`ALTER TABLE documents ADD COLUMN updated_at TEXT`);
+    db.exec(`UPDATE documents SET updated_at = created_at WHERE updated_at IS NULL`);
   } catch (e) {
     // column already exists
   }

@@ -18,19 +18,20 @@
 <% } %>
 <div class="mt-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
   <h2 class="font-semibold text-slate-800">Tạo tài khoản</h2>
-  <form method="post" action="/admin/users" class="mt-4 grid gap-4 sm:grid-cols-2">
+  <form method="post" action="/admin/users" autocomplete="off" class="mt-4 grid gap-4 sm:grid-cols-2">
     <div>
       <label class="block text-sm font-medium text-slate-700">Username</label>
-      <input name="username" required class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 transition-all focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500" />
+      <input name="username" required autocomplete="off" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 transition-all focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500" />
     </div>
     <div>
       <label class="block text-sm font-medium text-slate-700">Mật khẩu</label>
-      <input type="password" name="password" required class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 transition-all focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500" />
+      <input type="password" name="password" required autocomplete="new-password" minlength="8" pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^a-zA-Z0-9]).{8,}" title="Tối thiểu 8 ký tự: chữ hoa, chữ thường, số, ký tự đặc biệt" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 transition-all focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500" />
+      <p class="mt-1 text-xs text-slate-400">Tối thiểu 8 ký tự: chữ hoa, chữ thường, số, ký tự đặc biệt</p>
     </div>
     <div>
       <label class="block text-sm font-medium text-slate-700">Vai trò</label>
       <select name="role" id="roleSel" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 transition-all focus:border-brand-500 focus:ring-1 focus:ring-brand-500">
-        <option value="khoa">Khoa/phòng (1 acc chung)</option>
+        <option value="khoa">Người dùng</option>
         <option value="admin">Admin</option>
       </select>
     </div>
@@ -58,7 +59,7 @@
       </div>
       <div class="flex flex-wrap items-center gap-2">
         <form method="post" action="/admin/users/<%= u.id %>/password" class="flex items-center gap-1">
-          <input type="password" name="password" placeholder="Mật khẩu mới" class="w-36 rounded border border-slate-300 px-2 py-1 text-sm transition-all focus:border-brand-500 focus:ring-1 focus:ring-brand-500" />
+          <input type="password" name="password" placeholder="Mật khẩu mới" autocomplete="new-password" minlength="8" class="w-36 rounded border border-slate-300 px-2 py-1 text-sm transition-all focus:border-brand-500 focus:ring-1 focus:ring-brand-500" />
           <button type="submit" class="rounded p-1.5 text-slate-400 transition-all hover:bg-emerald-50 hover:text-emerald-600" title="Đổi mật khẩu">
             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5"/></svg>
           </button>

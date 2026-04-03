@@ -185,6 +185,9 @@ router.get('/users', (req, res) => {
   });
 });
 
+const PW_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^a-zA-Z0-9]).{8,}$/;
+const PW_MSG = 'Mật khẩu tối thiểu 8 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt.';
+
 router.post('/users', express.urlencoded({ extended: true }), (req, res) => {
   const { username, password, role, khoa_id } = req.body;
   const departments = db.prepare('SELECT * FROM departments ORDER BY name').all();
@@ -200,7 +203,17 @@ router.post('/users', express.urlencoded({ extended: true }), (req, res) => {
       title: 'Tài khoản',
       users,
       departments,
+      pg: { page: 1, totalPages: 1, totalCount: users.length, pageSize: '10', showing: users.length, base: '/admin/users' },
       error: 'Cần username và mật khẩu.'
+    });
+  }
+  if (!PW_REGEX.test(password)) {
+    return res.render('admin/users', {
+      title: 'Tài khoản',
+      users,
+      departments,
+      pg: { page: 1, totalPages: 1, totalCount: users.length, pageSize: '10', showing: users.length, base: '/admin/users' },
+      error: PW_MSG
     });
   }
   if (role === 'khoa' && !khoa_id) {
@@ -208,6 +221,7 @@ router.post('/users', express.urlencoded({ extended: true }), (req, res) => {
       title: 'Tài khoản',
       users,
       departments,
+      pg: { page: 1, totalPages: 1, totalCount: users.length, pageSize: '10', showing: users.length, base: '/admin/users' },
       error: 'Tài khoản khoa cần chọn khoa/phòng.'
     });
   }
@@ -222,6 +236,7 @@ router.post('/users', express.urlencoded({ extended: true }), (req, res) => {
       title: 'Tài khoản',
       users,
       departments,
+      pg: { page: 1, totalPages: 1, totalCount: users.length, pageSize: '10', showing: users.length, base: '/admin/users' },
       error: 'Username đã tồn tại.'
     });
   }
@@ -241,6 +256,13 @@ router.post('/users/:id/password', express.urlencoded({ extended: true }), (req,
   const id = parseInt(req.params.id, 10);
   const password = req.body.password;
   if (!password) return res.redirect('/admin/users');
+  if (!PW_REGEX.test(password)) {
+    const all = db.prepare(`SELECT u.*, d.name AS khoa_name FROM users u LEFT JOIN departments d ON d.id = u.khoa_id ORDER BY u.role DESC, u.username`).all();
+    const departments = db.prepare('SELECT * FROM departments ORDER BY name').all();
+    const { items: users, pg } = paginate(all, req.query);
+    pg.base = '/admin/users';
+    return res.render('admin/users', { title: 'Tài khoản', users, departments, pg, error: PW_MSG });
+  }
   const hash = bcrypt.hashSync(password, 10);
   db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hash, id);
   res.redirect('/admin/users');
@@ -295,8 +317,8 @@ router.post('/documents', upload.single('file'), (req, res) => {
       .prepare(
         `INSERT INTO documents (
           title, source_label, stored_filename, original_filename, mime_type,
-          is_public, owner_khoa_id, uploaded_by
-        ) VALUES (?,?,?,?,?,?,?,?)`
+          is_public, owner_khoa_id, uploaded_by, updated_at
+        ) VALUES (?,?,?,?,?,?,?,?, datetime('now'))`
       )
       .run(
         title.trim(),
