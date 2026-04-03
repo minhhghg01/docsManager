@@ -1,14 +1,16 @@
 <%- include('../partials/header') %>
-<div class="flex flex-wrap items-center justify-between gap-3">
-  <div class="flex items-center gap-3">
-    <a href="/admin/dashboard" class="inline-flex items-center gap-1 text-sm text-brand-600 transition-all hover:text-brand-800 hover:underline">
-      <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"/></svg>
-      Quản trị
+<div class="grid grid-cols-[auto_1fr_auto] items-center gap-3">
+  <div class="flex items-center gap-2">
+    <a href="/admin/dashboard" class="rounded p-1.5 text-brand-600 transition-all hover:bg-brand-50 hover:text-brand-800" title="Quản trị">
+      <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"/></svg>
     </a>
     <h1 class="text-2xl font-bold text-slate-800">Tài liệu</h1>
   </div>
-  <div class="flex flex-wrap items-center gap-3">
-    <%- include('../partials/pagination', { pg }) %>
+  <div class="flex justify-center">
+    <%- include('../partials/pagination', { pg, part: 'nav' }) %>
+  </div>
+  <div class="flex items-center gap-3">
+    <%- include('../partials/pagination', { pg, part: 'info' }) %>
     <a href="/admin/documents/new" class="inline-flex items-center gap-1.5 rounded-md bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition-all hover:bg-brand-700 hover:shadow-md">
       <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
       Thêm

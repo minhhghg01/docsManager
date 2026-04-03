@@ -14,15 +14,15 @@
     <input name="title" required value="<%= doc ? doc.title : '' %>" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 transition-all focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500" />
   </div>
   <div>
-    <label class="block text-sm font-medium text-slate-700">Nguồn (tên khoa/phòng do admin nhập)</label>
+    <label class="block text-sm font-medium text-slate-700">Nguồn</label>
     <input name="source_label" required value="<%= doc ? doc.source_label : '' %>" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 transition-all focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500" placeholder="Ví dụ: Phòng KHCN" />
   </div>
   <div class="flex items-center gap-2">
     <input type="checkbox" name="is_public" value="1" id="pub" <%= doc && doc.is_public ? 'checked' : '' %> class="h-4 w-4 rounded border-slate-300" />
-    <label for="pub" class="text-sm text-slate-700">Công khai (khách không đăng nhập xem được)</label>
+    <label for="pub" class="text-sm text-slate-700">Công khai</label>
   </div>
   <div>
-    <label class="block text-sm font-medium text-slate-700">Thuộc khoa/phòng (để user khoa xem nội bộ)</label>
+    <label class="block text-sm font-medium text-slate-700">Thuộc khoa/phòng</label>
     <select name="owner_khoa_id" class="mt-1 w-full max-w-md rounded-md border border-slate-300 px-3 py-2 transition-all focus:border-brand-500 focus:ring-1 focus:ring-brand-500">
       <option value="">— Không gán —</option>
       <% departments.forEach(function (k) { %>

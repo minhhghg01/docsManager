@@ -14,8 +14,13 @@ router.use(requireAdmin);
 const UPLOAD_ROOT = path.join(__dirname, '..', 'public', 'uploads');
 const PDF_CACHE = path.join(__dirname, '..', 'public', 'pdf_cache');
 
+function fixOriginalName(file) {
+  file.originalname = Buffer.from(file.originalname, 'latin1').toString('utf-8');
+}
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
+    fixOriginalName(file);
     cb(null, UPLOAD_ROOT);
   },
   filename: (req, file, cb) => {
@@ -378,14 +383,16 @@ router.post('/documents/:id', upload.single('file'), (req, res) => {
       db.prepare(
         `UPDATE documents SET
           title = ?, source_label = ?, stored_filename = ?, original_filename = ?,
-          mime_type = ?, is_public = ?, owner_khoa_id = ?, pdf_cache_filename = NULL
+          mime_type = ?, is_public = ?, owner_khoa_id = ?, pdf_cache_filename = NULL,
+          updated_at = datetime('now')
         WHERE id = ?`
       ).run(title.trim(), source_label.trim(), stored, original, mime, pub, owner, id);
     } else {
       db.prepare(
         `UPDATE documents SET
           title = ?, source_label = ?, stored_filename = ?, original_filename = ?,
-          mime_type = ?, is_public = ?, owner_khoa_id = ?
+          mime_type = ?, is_public = ?, owner_khoa_id = ?,
+          updated_at = datetime('now')
         WHERE id = ?`
       ).run(title.trim(), source_label.trim(), stored, original, mime, pub, owner, id);
     }

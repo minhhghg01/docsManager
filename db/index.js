@@ -137,9 +137,15 @@ function initSchema(db) {
       owner_khoa_id INTEGER REFERENCES departments(id) ON DELETE SET NULL,
       pdf_cache_filename TEXT,
       uploaded_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
-      created_at TEXT DEFAULT (datetime('now'))
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now'))
     )
   `);
+  try {
+    db.exec(`ALTER TABLE documents ADD COLUMN updated_at TEXT DEFAULT (datetime('now'))`);
+  } catch (e) {
+    // column already exists
+  }
   db.exec(`
     CREATE TABLE IF NOT EXISTS document_shares (
       id INTEGER PRIMARY KEY AUTOINCREMENT,

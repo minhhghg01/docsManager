@@ -37,7 +37,7 @@ function buildVisibilityClause(user) {
   return { where, params, needJoin };
 }
 
-function listVisibleDocs(user, { search, tags, deptId } = {}) {
+function listVisibleDocs(user, { search, tags, deptId, pub } = {}) {
   const { where, params, needJoin } = buildVisibilityClause(user);
   let baseWhere = where;
   const p = [...params];
@@ -57,6 +57,12 @@ function listVisibleDocs(user, { search, tags, deptId } = {}) {
   if (deptId) {
     baseWhere += ' AND d.owner_khoa_id = ?';
     p.push(parseInt(deptId, 10));
+  }
+
+  if (pub === '1') {
+    baseWhere += ' AND d.is_public = 1';
+  } else if (pub === '0') {
+    baseWhere += ' AND d.is_public = 0';
   }
 
   const joinClause = needJoin
@@ -116,6 +122,7 @@ router.get('/', (req, res) => {
     ? tagsParam.split(',').map((t) => t.trim()).filter(Boolean)
     : [];
   const deptId = req.query.dept || '';
+  const pub = req.query.pub || '';
   const psRaw = req.query.ps || '10';
   const pageSize = psRaw === 'all' ? 0 : parseInt(psRaw, 10) || 10;
   const page = parseInt(req.query.page || '1', 10) || 1;
@@ -123,7 +130,8 @@ router.get('/', (req, res) => {
   const allDocs = listVisibleDocs(req.user, {
     search,
     tags: selectedTags,
-    deptId
+    deptId,
+    pub
   });
   const totalCount = allDocs.length;
 
@@ -148,6 +156,7 @@ router.get('/', (req, res) => {
   if (search) qp.set('q', search);
   if (selectedTags.length) qp.set('tags', selectedTags.join(','));
   if (deptId) qp.set('dept', deptId);
+  if (pub) qp.set('pub', pub);
   const qs = qp.toString();
   const paginationBase = '/docs' + (qs ? '?' + qs : '');
 
@@ -159,7 +168,7 @@ router.get('/', (req, res) => {
     departments,
     tagCounts,
     deptCounts,
-    filters: { search, tags: selectedTags, deptId },
+    filters: { search, tags: selectedTags, deptId, pub },
     pagination: {
       page: currentPage,
       totalPages,

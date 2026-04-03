@@ -1,19 +1,13 @@
 <%
+var _part = typeof part !== 'undefined' ? part : 'all';
 var _sep = pg.base.includes('?') ? '&' : '?';
 function pgUrl(p, ps) {
   return pg.base + _sep + 'ps=' + (ps !== undefined ? ps : pg.pageSize) + '&page=' + p;
 }
 %>
 <% if (pg.totalCount > 0) { %>
-<div class="flex items-center gap-2 text-sm text-slate-500">
-  <span><strong class="text-slate-700"><%= pg.showing %></strong>/<strong class="text-slate-700"><%= pg.totalCount %></strong></span>
-  <select onchange="location.href=this.value" class="rounded border border-slate-300 px-1.5 py-1 text-xs transition-all focus:border-brand-500 focus:ring-1 focus:ring-brand-500">
-    <% [3, 10, 50, 200, 1000, 'all'].forEach(function(s) { %>
-      <option value="<%= pgUrl(1, s) %>" <%= String(pg.pageSize) === String(s) ? 'selected' : '' %>><%= s === 'all' ? 'Tất cả' : s %>/trang</option>
-    <% }); %>
-  </select>
-</div>
-<% if (pg.totalPages > 1) { %>
+
+<% if ((_part === 'all' || _part === 'nav') && pg.totalPages > 1) { %>
 <div class="flex items-center gap-1 text-sm">
   <% if (pg.page > 1) { %>
     <a href="<%= pgUrl(pg.page - 1) %>" class="rounded border border-slate-300 px-2 py-0.5 transition-all hover:bg-slate-100">←</a>
@@ -46,4 +40,16 @@ function pgUrl(p, ps) {
   <% } %>
 </div>
 <% } %>
+
+<% if (_part === 'all' || _part === 'info') { %>
+<div class="flex items-center gap-2 text-sm text-slate-500">
+  <span><strong class="text-slate-700"><%= pg.showing %></strong>/<strong class="text-slate-700"><%= pg.totalCount %></strong></span>
+  <select onchange="location.href=this.value" class="rounded border border-slate-300 px-1.5 py-1 text-xs transition-all focus:border-brand-500 focus:ring-1 focus:ring-brand-500">
+    <% [3, 10, 50, 200, 1000, 'all'].forEach(function(s) { %>
+      <option value="<%= pgUrl(1, s) %>" <%= String(pg.pageSize) === String(s) ? 'selected' : '' %>><%= s === 'all' ? 'Tất cả' : s %>/trang</option>
+    <% }); %>
+  </select>
+</div>
+<% } %>
+
 <% } %>
