@@ -47,12 +47,23 @@
     <label class="block text-sm font-medium text-slate-700">Tags (phân cách bằng dấu phẩy)</label>
     <input name="tags" value="<%= doc && doc.tags ? doc.tags.join(', ') : '' %>" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 transition-all focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500" placeholder="Ví dụ: quy trình, biểu mẫu, hướng dẫn" />
   </div>
-  <div>
-    <label class="block text-sm font-medium text-slate-700">File <%= doc ? '(để trống nếu giữ file cũ)' : '' %></label>
-    <input type="file" name="file" <%= doc ? '' : 'required' %> class="mt-1 w-full text-sm" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.odt,.ods,.odp" />
-    <% if (doc) { %>
-      <p class="mt-1 text-xs text-slate-500">Đang có: <%= doc.original_filename %></p>
-    <% } %>
+  <div class="grid gap-4 sm:grid-cols-2">
+    <div>
+      <label class="block text-sm font-medium text-slate-700">File <%= doc ? '(để trống nếu giữ file cũ)' : '' %></label>
+      <input type="file" name="file" <%= doc ? '' : 'required' %> class="mt-1 w-full text-sm" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.odt,.ods,.odp" />
+      <% if (doc) { %>
+        <p class="mt-1 text-xs text-slate-500">Đang có: <%= doc.original_filename %></p>
+      <% } %>
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-slate-700">Ảnh banner (tùy chọn)</label>
+      <input type="file" name="banner" class="mt-1 w-full text-sm" accept="image/*" />
+      <% if (doc && doc.banner_filename) { %>
+        <p class="mt-1 text-xs text-slate-500">Đang có banner. Để trống giữ ảnh cũ.</p>
+      <% } else { %>
+        <p class="mt-1 text-xs text-slate-400">Không chọn → hiển thị icon định dạng file.</p>
+      <% } %>
+    </div>
   </div>
   <div class="flex gap-3">
     <button type="submit" class="rounded-md bg-brand-600 px-4 py-2 font-semibold text-white transition-all hover:bg-brand-700 hover:shadow-md">Lưu</button>

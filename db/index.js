@@ -144,9 +144,10 @@ function initSchema(db) {
   try {
     db.exec(`ALTER TABLE documents ADD COLUMN updated_at TEXT`);
     db.exec(`UPDATE documents SET updated_at = created_at WHERE updated_at IS NULL`);
-  } catch (e) {
-    // column already exists
-  }
+  } catch (e) { /* column already exists */ }
+  try {
+    db.exec(`ALTER TABLE documents ADD COLUMN banner_filename TEXT`);
+  } catch (e) { /* column already exists */ }
   db.exec(`
     CREATE TABLE IF NOT EXISTS document_shares (
       id INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -1,0 +1,27 @@
+<%
+var _fn = (typeof fname !== 'undefined' ? fname : '').toLowerCase();
+var _ext = _fn.split('.').pop();
+var _map = {
+  pdf:  { bg: '#DC2626', label: 'PDF' },
+  doc:  { bg: '#2563EB', label: 'DOC' },
+  docx: { bg: '#2563EB', label: 'DOC' },
+  xls:  { bg: '#16A34A', label: 'XLS' },
+  xlsx: { bg: '#16A34A', label: 'XLS' },
+  ppt:  { bg: '#EA580C', label: 'PPT' },
+  pptx: { bg: '#EA580C', label: 'PPT' },
+  txt:  { bg: '#0891B2', label: 'TXT' },
+  zip:  { bg: '#CA8A04', label: 'ZIP' },
+  rar:  { bg: '#CA8A04', label: 'RAR' }
+};
+var _info = _map[_ext] || { bg: '#64748B', label: _ext ? _ext.toUpperCase().slice(0,4) : 'FILE' };
+%>
+<div class="flex h-full w-full items-center justify-center bg-slate-100">
+  <div class="flex flex-col items-center gap-1">
+    <svg class="h-12 w-12" viewBox="0 0 48 48" fill="none">
+      <path d="M12 4h16l12 12v28a2 2 0 0 1-2 2H12a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z" fill="<%= _info.bg %>" opacity="0.15"/>
+      <path d="M12 4h16l12 12v28a2 2 0 0 1-2 2H12a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z" stroke="<%= _info.bg %>" stroke-width="2" fill="none"/>
+      <path d="M28 4v12h12" stroke="<%= _info.bg %>" stroke-width="2" fill="none"/>
+    </svg>
+    <span class="rounded px-2 py-0.5 text-xs font-bold text-white" style="background:<%= _info.bg %>"><%= _info.label %></span>
+  </div>
+</div>

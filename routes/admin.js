@@ -288,10 +288,18 @@ router.get('/documents/new', (req, res) => {
   });
 });
 
-router.post('/documents', upload.single('file'), (req, res) => {
+const uploadFields = upload.fields([
+  { name: 'file', maxCount: 1 },
+  { name: 'banner', maxCount: 1 }
+]);
+
+router.post('/documents', uploadFields, (req, res) => {
     const departments = db.prepare('SELECT * FROM departments ORDER BY name').all();
     const { title, source_label, is_public, owner_khoa_id } = req.body;
-    if (!req.file) {
+    const mainFile = req.files?.file?.[0];
+    const bannerFile = req.files?.banner?.[0];
+    if (!mainFile) {
+      if (bannerFile) fs.unlinkSync(bannerFile.path);
       return res.render('admin/document-form', {
         title: 'Thêm tài liệu',
         doc: null,
@@ -300,7 +308,8 @@ router.post('/documents', upload.single('file'), (req, res) => {
       });
     }
     if (!title?.trim() || !source_label?.trim()) {
-      fs.unlinkSync(req.file.path);
+      fs.unlinkSync(mainFile.path);
+      if (bannerFile) fs.unlinkSync(bannerFile.path);
       return res.render('admin/document-form', {
         title: 'Thêm tài liệu',
         doc: null,
@@ -313,22 +322,24 @@ router.post('/documents', upload.single('file'), (req, res) => {
       owner_khoa_id && String(owner_khoa_id).trim()
         ? parseInt(owner_khoa_id, 10)
         : null;
+    const bannerFn = bannerFile ? bannerFile.filename : null;
     const info = db
       .prepare(
         `INSERT INTO documents (
           title, source_label, stored_filename, original_filename, mime_type,
-          is_public, owner_khoa_id, uploaded_by, updated_at
-        ) VALUES (?,?,?,?,?,?,?,?, datetime('now'))`
+          is_public, owner_khoa_id, uploaded_by, updated_at, banner_filename
+        ) VALUES (?,?,?,?,?,?,?,?, datetime('now'), ?)`
       )
       .run(
         title.trim(),
         source_label.trim(),
-        req.file.filename,
-        req.file.originalname,
-        req.file.mimetype || null,
+        mainFile.filename,
+        mainFile.originalname,
+        mainFile.mimetype || null,
         pub,
         owner,
-        req.user.id
+        req.user.id,
+        bannerFn
       );
     const docId = info.lastInsertRowid;
     const shares = parseKhoaIds(req.body);
@@ -357,13 +368,15 @@ router.get('/documents/:id/edit', (req, res) => {
   });
 });
 
-router.post('/documents/:id', upload.single('file'), (req, res) => {
+router.post('/documents/:id', uploadFields, (req, res) => {
     const id = parseInt(req.params.id, 10);
     const row = db.prepare('SELECT * FROM documents WHERE id = ?').get(id);
     if (!row) return res.redirect('/admin/documents');
 
     const departments = db.prepare('SELECT * FROM departments ORDER BY name').all();
     const { title, source_label, is_public, owner_khoa_id } = req.body;
+    const mainFile = req.files?.file?.[0];
+    const bannerFile = req.files?.banner?.[0];
     if (!title?.trim() || !source_label?.trim()) {
       const doc = documentWithShares(db, row);
       return res.render('admin/document-form', {
@@ -383,8 +396,9 @@ router.post('/documents/:id', upload.single('file'), (req, res) => {
     let original = row.original_filename;
     let mime = row.mime_type;
     let clearPdf = false;
+    let bannerFn = row.banner_filename || null;
 
-    if (req.file) {
+    if (mainFile) {
       const oldPath = path.join(UPLOAD_ROOT, row.stored_filename);
       if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
       if (row.pdf_cache_filename) {
@@ -395,10 +409,18 @@ router.post('/documents/:id', upload.single('file'), (req, res) => {
           fs.rmSync(cacheDir, { recursive: true, force: true });
         }
       }
-      stored = req.file.filename;
-      original = req.file.originalname;
-      mime = req.file.mimetype || null;
+      stored = mainFile.filename;
+      original = mainFile.originalname;
+      mime = mainFile.mimetype || null;
       clearPdf = true;
+    }
+
+    if (bannerFile) {
+      if (row.banner_filename) {
+        const oldBanner = path.join(UPLOAD_ROOT, row.banner_filename);
+        if (fs.existsSync(oldBanner)) fs.unlinkSync(oldBanner);
+      }
+      bannerFn = bannerFile.filename;
     }
 
     if (clearPdf) {
@@ -406,17 +428,17 @@ router.post('/documents/:id', upload.single('file'), (req, res) => {
         `UPDATE documents SET
           title = ?, source_label = ?, stored_filename = ?, original_filename = ?,
           mime_type = ?, is_public = ?, owner_khoa_id = ?, pdf_cache_filename = NULL,
-          updated_at = datetime('now')
+          updated_at = datetime('now'), banner_filename = ?
         WHERE id = ?`
-      ).run(title.trim(), source_label.trim(), stored, original, mime, pub, owner, id);
+      ).run(title.trim(), source_label.trim(), stored, original, mime, pub, owner, bannerFn, id);
     } else {
       db.prepare(
         `UPDATE documents SET
           title = ?, source_label = ?, stored_filename = ?, original_filename = ?,
           mime_type = ?, is_public = ?, owner_khoa_id = ?,
-          updated_at = datetime('now')
+          updated_at = datetime('now'), banner_filename = ?
         WHERE id = ?`
-      ).run(title.trim(), source_label.trim(), stored, original, mime, pub, owner, id);
+      ).run(title.trim(), source_label.trim(), stored, original, mime, pub, owner, bannerFn, id);
     }
 
     db.prepare('DELETE FROM document_shares WHERE document_id = ?').run(id);
