@@ -33,14 +33,20 @@
   <div>
     <label class="block text-sm font-medium text-slate-700">Chia sẻ xem cho các khoa khác</label>
     <p class="text-xs text-slate-500">Chọn thêm khoa được phép xem (ngoài khoa sở hữu và tài liệu công khai).</p>
-    <div class="mt-2 max-h-40 space-y-1 overflow-y-auto rounded-md border border-slate-200 p-2">
-      <% departments.forEach(function (k) { %>
-        <% var checked = doc && doc.shared_khoa_ids && doc.shared_khoa_ids.indexOf(k.id) !== -1; %>
-        <label class="flex items-center gap-2 text-sm">
-          <input type="checkbox" name="shared_khoa_ids" value="<%= k.id %>" <%= checked ? 'checked' : '' %> />
-          <%= k.name %>
-        </label>
-      <% }); %>
+    <div class="mt-2 rounded-md border border-slate-200 p-2">
+      <label class="flex items-center gap-2 border-b border-slate-100 pb-1.5 mb-1.5 text-sm font-medium text-slate-600 cursor-pointer">
+        <input type="checkbox" id="shareAll" class="h-4 w-4 rounded border-slate-300" />
+        Chọn tất cả
+      </label>
+      <div class="max-h-40 space-y-1 overflow-y-auto">
+        <% departments.forEach(function (k) { %>
+          <% var checked = doc && doc.shared_khoa_ids && doc.shared_khoa_ids.indexOf(k.id) !== -1; %>
+          <label class="flex items-center gap-2 text-sm">
+            <input type="checkbox" name="shared_khoa_ids" value="<%= k.id %>" class="share-cb" <%= checked ? 'checked' : '' %> />
+            <%= k.name %>
+          </label>
+        <% }); %>
+      </div>
     </div>
   </div>
   <div>
@@ -70,4 +76,21 @@
     <a href="/admin/documents" class="rounded-md border border-slate-300 px-4 py-2 font-medium text-slate-700 transition-all hover:bg-slate-100">Hủy</a>
   </div>
 </form>
+<script>
+(function () {
+  var all = document.getElementById('shareAll');
+  var cbs = document.querySelectorAll('.share-cb');
+  function syncAll() {
+    var total = cbs.length, checked = 0;
+    cbs.forEach(function (c) { if (c.checked) checked++; });
+    all.checked = checked === total;
+    all.indeterminate = checked > 0 && checked < total;
+  }
+  all.addEventListener('change', function () {
+    cbs.forEach(function (c) { c.checked = all.checked; });
+  });
+  cbs.forEach(function (c) { c.addEventListener('change', syncAll); });
+  syncAll();
+})();
+</script>
 <%- include('../partials/footer') %>

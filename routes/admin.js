@@ -52,8 +52,8 @@ function parseTags(body) {
 }
 
 function paginate(items, query) {
-  const psRaw = query.ps || '10';
-  const pageSize = psRaw === 'all' ? 0 : parseInt(psRaw, 10) || 10;
+  const psRaw = query.ps || '9';
+  const pageSize = psRaw === 'all' ? 0 : parseInt(psRaw, 10) || 9;
   const page = parseInt(query.page || '1', 10) || 1;
   const totalCount = items.length;
   if (pageSize <= 0) {
@@ -203,7 +203,7 @@ router.post('/users', express.urlencoded({ extended: true }), (req, res) => {
       title: 'Tài khoản',
       users,
       departments,
-      pg: { page: 1, totalPages: 1, totalCount: users.length, pageSize: '10', showing: users.length, base: '/admin/users' },
+      pg: { page: 1, totalPages: 1, totalCount: users.length, pageSize: '9', showing: users.length, base: '/admin/users' },
       error: 'Cần username và mật khẩu.'
     });
   }
@@ -212,7 +212,7 @@ router.post('/users', express.urlencoded({ extended: true }), (req, res) => {
       title: 'Tài khoản',
       users,
       departments,
-      pg: { page: 1, totalPages: 1, totalCount: users.length, pageSize: '10', showing: users.length, base: '/admin/users' },
+      pg: { page: 1, totalPages: 1, totalCount: users.length, pageSize: '9', showing: users.length, base: '/admin/users' },
       error: PW_MSG
     });
   }
@@ -221,7 +221,7 @@ router.post('/users', express.urlencoded({ extended: true }), (req, res) => {
       title: 'Tài khoản',
       users,
       departments,
-      pg: { page: 1, totalPages: 1, totalCount: users.length, pageSize: '10', showing: users.length, base: '/admin/users' },
+      pg: { page: 1, totalPages: 1, totalCount: users.length, pageSize: '9', showing: users.length, base: '/admin/users' },
       error: 'Tài khoản khoa cần chọn khoa/phòng.'
     });
   }
@@ -236,7 +236,7 @@ router.post('/users', express.urlencoded({ extended: true }), (req, res) => {
       title: 'Tài khoản',
       users,
       departments,
-      pg: { page: 1, totalPages: 1, totalCount: users.length, pageSize: '10', showing: users.length, base: '/admin/users' },
+      pg: { page: 1, totalPages: 1, totalCount: users.length, pageSize: '9', showing: users.length, base: '/admin/users' },
       error: 'Username đã tồn tại.'
     });
   }

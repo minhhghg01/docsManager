@@ -96,9 +96,9 @@
   <% docs.forEach(function (d) { %>
     <a href="/docs/<%= d.id %>" class="group flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
       <!-- Banner -->
-      <div class="relative h-40 w-full overflow-hidden">
+      <div class="relative h-40 w-full overflow-hidden bg-slate-100">
         <% if (d.banner_filename) { %>
-          <img src="/uploads/<%= d.banner_filename %>" alt="" class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
+          <img src="/uploads/<%= d.banner_filename %>" alt="" loading="lazy" class="h-full w-full object-contain object-center bg-white" />
         <% } else { %>
           <%- include('../partials/file-icon', { fname: d.original_filename }) %>
         <% } %>

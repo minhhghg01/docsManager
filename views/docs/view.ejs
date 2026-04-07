@@ -1,44 +1,80 @@
 <%- include('../partials/header') %>
-<div class="mb-4 flex flex-wrap items-center justify-between gap-3">
-  <div>
-    <div class="flex items-center gap-2">
-      <h1 class="text-2xl font-bold text-slate-800"><%= doc.title %></h1>
-      <% if (doc.is_public) { %><span class="rounded bg-emerald-100 px-2 py-0.5 text-xs text-emerald-800">Công khai</span><% } %>
-    </div>
-    <p class="text-sm text-slate-500">Nguồn: <%= doc.source_label %> · <%= doc.original_filename %></p>
-    <p class="mt-0.5 text-xs text-slate-400">
-      Đăng: <%= doc.created_at ? new Date(doc.created_at + 'Z').toLocaleString('vi-VN', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '—' %>
-      <% if (doc.updated_at && doc.updated_at !== doc.created_at) { %>
-        · Sửa: <%= new Date(doc.updated_at + 'Z').toLocaleString('vi-VN', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }) %>
-      <% } %>
-    </p>
-    <% if (doc.tags && doc.tags.length) { %>
-      <div class="mt-1.5 flex flex-wrap gap-1">
-        <% doc.tags.forEach(function (t) { %>
-          <a href="/docs?tags=<%= encodeURIComponent(t) %>" class="rounded-full bg-brand-50 px-2 py-0.5 text-xs text-brand-600 transition-all hover:bg-brand-100"><%= t %></a>
-        <% }); %>
+
+<!-- Back link -->
+<div class="mb-4">
+  <a href="/docs" class="inline-flex items-center gap-1 text-sm text-slate-500 transition-all hover:text-brand-600">
+    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/></svg>
+    Quay lại
+  </a>
+</div>
+
+<!-- Document info card -->
+<div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+  <div class="flex flex-wrap items-start justify-between gap-4">
+    <div class="min-w-0 flex-1">
+      <!-- Badges -->
+      <div class="flex flex-wrap items-center gap-2">
+        <% if (doc.source_label) { %>
+          <span class="inline-flex items-center rounded-full bg-brand-600 px-3 py-1 text-xs font-bold uppercase tracking-wider text-white shadow-sm"><%= doc.source_label %></span>
+        <% } %>
+        <% if (doc.is_public) { %>
+          <span class="inline-flex items-center rounded-full bg-emerald-500 px-3 py-1 text-xs font-bold text-white shadow-sm">Công khai</span>
+        <% } %>
       </div>
-    <% } %>
-  </div>
-  <div class="flex gap-2">
-    <a href="/docs/<%= doc.id %>/download" class="inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition-all hover:bg-slate-100 hover:shadow-sm">
-      <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
-      Tải file gốc
-    </a>
-    <a href="/docs" class="inline-flex items-center gap-1.5 rounded-md bg-slate-200 px-3 py-2 text-sm font-medium text-slate-800 transition-all hover:bg-slate-300">
-      <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"/></svg>
-      Quay lại
-    </a>
+
+      <!-- Title -->
+      <h1 class="mt-3 text-2xl font-bold text-slate-800"><%= doc.title %></h1>
+
+      <!-- Filename -->
+      <p class="mt-1.5 text-sm text-slate-500"><%= doc.original_filename %></p>
+
+      <!-- Dates -->
+      <div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-400">
+        <span class="inline-flex items-center gap-1.5">
+          <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5"/></svg>
+          Đăng: <%= doc.created_at ? new Date(doc.created_at + 'Z').toLocaleString('vi-VN', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '—' %>
+        </span>
+        <% if (doc.updated_at && doc.updated_at !== doc.created_at) { %>
+          <span class="inline-flex items-center gap-1.5">
+            <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
+            Cập nhật: <%= new Date(doc.updated_at + 'Z').toLocaleString('vi-VN', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }) %>
+          </span>
+        <% } %>
+      </div>
+
+      <!-- Tags -->
+      <% if (doc.tags && doc.tags.length) { %>
+        <div class="mt-3 flex flex-wrap gap-1.5">
+          <% doc.tags.forEach(function (t) { %>
+            <a href="/docs?tags=<%= encodeURIComponent(t) %>" class="rounded-full border border-brand-200 bg-brand-50 px-3 py-0.5 text-xs font-medium text-brand-600 transition-all hover:bg-brand-100"><%= t %></a>
+          <% }); %>
+        </div>
+      <% } %>
+    </div>
+
+    <!-- Action buttons -->
+    <div class="flex shrink-0 gap-2">
+      <a href="/docs/<%= doc.id %>/download" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition-all hover:bg-slate-100 hover:shadow-sm">
+        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+        Tải file gốc
+      </a>
+      <% if (user && user.role === 'admin') { %>
+        <a href="/admin/documents/<%= doc.id %>/edit" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition-all hover:bg-slate-100 hover:shadow-sm">
+          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125"/></svg>
+          Sửa
+        </a>
+      <% } %>
+    </div>
   </div>
 </div>
-<div class="overflow-hidden rounded-xl border border-slate-200 bg-slate-100 shadow-inner">
+
+<!-- Document viewer -->
+<div class="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 shadow-inner">
   <iframe
     title="Xem tài liệu"
     src="/docs/<%= doc.id %>/view"
-    class="h-[75vh] w-full bg-white"
+    class="h-[95vh] w-full bg-white"
   ></iframe>
 </div>
-<% if (user && user.role === 'admin') { %>
-  <p class="mt-2"><a href="/admin/documents/<%= doc.id %>/edit" class="text-sm font-medium text-brand-600 transition-all hover:text-brand-800 hover:underline">Sửa / chia sẻ (quản trị)</a></p>
-<% } %>
+
 <%- include('../partials/footer') %>
