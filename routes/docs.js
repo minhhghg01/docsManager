@@ -3,7 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const db = require('../db');
 const { canViewDocument, documentWithShares } = require('../lib/access');
-const { isPdf, isViewable, convertToHtml } = require('../lib/docPreview');
+const { isPdf, isImage, isMedia, isPlainText, isViewable, convertToHtml } = require('../lib/docPreview');
 
 const router = express.Router();
 
@@ -195,8 +195,9 @@ router.get('/:id/view', async (req, res, next) => {
     return res.type('html').status(404).send(simpleMsg('File không còn trên máy chủ.'));
   }
 
-  if (isPdf(doc.original_filename)) {
-    res.type('pdf');
+  if (isPdf(doc.original_filename) || isImage(doc.original_filename) || isMedia(doc.original_filename) || isPlainText(doc.original_filename)) {
+    // Trình duyệt hỗ trợ native các đuôi này
+    res.type(path.extname(doc.original_filename));
     return res.sendFile(filePath);
   }
 
