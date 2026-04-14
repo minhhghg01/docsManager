@@ -1,0 +1,250 @@
+<!-- AI Chat Panel - Cho phép mọi user đăng nhập -->
+<% if (user) { %>
+
+<!-- Floating button -->
+<button id="ai-chat-toggle"
+  onclick="toggleAiChat()"
+  class="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-lg transition-all hover:scale-110 hover:shadow-xl active:scale-95"
+  title="Trợ lý AI">
+  <svg id="ai-chat-icon-open" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+    <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 0 0-2.455 2.456Z"/>
+  </svg>
+  <svg id="ai-chat-icon-close" class="h-7 w-7 hidden" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
+  </svg>
+</button>
+
+<!-- Chat panel -->
+<div id="ai-chat-panel"
+  class="fixed bottom-24 right-6 z-50 hidden w-[400px] max-h-[600px] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
+  style="display:none;">
+
+  <!-- Header -->
+  <div class="flex items-center gap-3 bg-gradient-to-r from-indigo-600 to-purple-600 px-5 py-4">
+    <div class="flex h-9 w-9 items-center justify-center rounded-full bg-white/20">
+      <svg class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z"/>
+      </svg>
+    </div>
+    <div>
+      <h3 class="text-sm font-bold text-white">Trợ lý AI</h3>
+      <p class="text-xs text-white/70">Hỏi đáp dựa trên tài liệu nội bộ</p>
+    </div>
+  </div>
+
+  <!-- Messages -->
+  <div id="ai-chat-messages" class="flex-1 overflow-y-auto p-4 space-y-4" style="max-height:400px; min-height:200px;">
+    <!-- Welcome message -->
+    <div class="flex gap-3" id="ai-welcome-msg">
+      <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-100">
+        <span class="text-sm">🤖</span>
+      </div>
+      <div class="rounded-2xl rounded-tl-sm bg-slate-100 px-4 py-3 text-sm text-slate-700 max-w-[85%]">
+        Xin chào! Tôi là trợ lý AI. Hãy đặt câu hỏi về nội dung các tài liệu trong hệ thống, tôi sẽ tìm và trả lời cho bạn.
+      </div>
+    </div>
+  </div>
+
+  <!-- Input -->
+  <div class="border-t border-slate-200 bg-slate-50 p-4">
+    <form id="ai-chat-form" onsubmit="sendAiChat(event)" class="flex gap-2">
+      <input
+        type="text"
+        id="ai-chat-input"
+        placeholder="Nhập câu hỏi..."
+        autocomplete="off"
+        class="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-700 placeholder-slate-400 transition-all focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+      />
+      <button type="submit" id="ai-chat-send"
+        class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white transition-all hover:bg-indigo-700 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
+        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5"/>
+        </svg>
+      </button>
+    </form>
+  </div>
+</div>
+
+<style>
+  @keyframes aiMsgIn {
+    from { opacity:0; transform: translateY(8px); }
+    to { opacity:1; transform:translateY(0); }
+  }
+  .ai-msg-animate { animation: aiMsgIn 0.3s ease-out; }
+
+  @keyframes aiDot {
+    0%, 80%, 100% { transform: scale(0.6); opacity:0.4; }
+    40% { transform: scale(1); opacity:1; }
+  }
+  .ai-thinking-dot {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #818cf8;
+    animation: aiDot 1.2s infinite;
+  }
+  .ai-thinking-dot:nth-child(2) { animation-delay: 0.15s; }
+  .ai-thinking-dot:nth-child(3) { animation-delay: 0.3s; }
+
+  #ai-chat-panel {
+    transition: opacity 0.2s ease, transform 0.2s ease;
+  }
+  #ai-chat-panel.ai-panel-show {
+    display: flex !important;
+    opacity: 1;
+    transform: translateY(0);
+  }
+  #ai-chat-panel.ai-panel-hide {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+</style>
+
+<script>
+let aiChatOpen = false;
+
+function toggleAiChat() {
+  const panel = document.getElementById('ai-chat-panel');
+  const iconOpen = document.getElementById('ai-chat-icon-open');
+  const iconClose = document.getElementById('ai-chat-icon-close');
+
+  aiChatOpen = !aiChatOpen;
+
+  if (aiChatOpen) {
+    panel.style.display = 'flex';
+    requestAnimationFrame(() => panel.classList.add('ai-panel-show'));
+    panel.classList.remove('ai-panel-hide');
+    iconOpen.classList.add('hidden');
+    iconClose.classList.remove('hidden');
+    document.getElementById('ai-chat-input').focus();
+  } else {
+    panel.classList.remove('ai-panel-show');
+    panel.classList.add('ai-panel-hide');
+    iconOpen.classList.remove('hidden');
+    iconClose.classList.add('hidden');
+    setTimeout(() => { panel.style.display = 'none'; }, 200);
+  }
+}
+
+function addChatMessage(role, content) {
+  const container = document.getElementById('ai-chat-messages');
+
+  const wrapper = document.createElement('div');
+  wrapper.className = 'flex ai-msg-animate ' + (role === 'user' ? 'justify-end' : 'gap-3');
+
+  if (role === 'user') {
+    wrapper.innerHTML = `
+      <div class="rounded-2xl rounded-tr-sm bg-indigo-600 px-4 py-3 text-sm text-white max-w-[85%]">
+        ${escapeHtmlChat(content)}
+      </div>`;
+  } else {
+    wrapper.innerHTML = `
+      <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-100">
+        <span class="text-sm">🤖</span>
+      </div>
+      <div class="rounded-2xl rounded-tl-sm bg-slate-100 px-4 py-3 text-sm text-slate-700 max-w-[85%]">
+        ${formatAiAnswer(content)}
+      </div>`;
+  }
+
+  container.appendChild(wrapper);
+  container.scrollTop = container.scrollHeight;
+  return wrapper;
+}
+
+function addThinkingIndicator() {
+  const container = document.getElementById('ai-chat-messages');
+  const wrapper = document.createElement('div');
+  wrapper.className = 'flex gap-3 ai-msg-animate';
+  wrapper.id = 'ai-thinking';
+  wrapper.innerHTML = `
+    <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-100">
+      <span class="text-sm">🤖</span>
+    </div>
+    <div class="rounded-2xl rounded-tl-sm bg-slate-100 px-4 py-3 flex items-center gap-1.5">
+      <span class="ai-thinking-dot"></span>
+      <span class="ai-thinking-dot"></span>
+      <span class="ai-thinking-dot"></span>
+    </div>`;
+  container.appendChild(wrapper);
+  container.scrollTop = container.scrollHeight;
+}
+
+function removeThinkingIndicator() {
+  const el = document.getElementById('ai-thinking');
+  if (el) el.remove();
+}
+
+function addSourceLinks(sources) {
+  if (!sources || sources.length === 0) return;
+  const container = document.getElementById('ai-chat-messages');
+  const wrapper = document.createElement('div');
+  wrapper.className = 'flex gap-3 ai-msg-animate';
+  const links = sources.map(s =>
+    `<a href="/docs/${s.id}" target="_blank" class="inline-flex items-center gap-1 rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-xs font-medium text-indigo-600 transition-all hover:bg-indigo-100 no-underline">
+      <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"/></svg>
+      ${escapeHtmlChat(s.title)}
+    </a>`
+  ).join('');
+
+  wrapper.innerHTML = `
+    <div class="w-8 shrink-0"></div>
+    <div class="flex flex-wrap gap-1.5">${links}</div>`;
+  container.appendChild(wrapper);
+  container.scrollTop = container.scrollHeight;
+}
+
+async function sendAiChat(e) {
+  e.preventDefault();
+  const input = document.getElementById('ai-chat-input');
+  const sendBtn = document.getElementById('ai-chat-send');
+  const question = input.value.trim();
+  if (!question) return;
+
+  // Add user message
+  addChatMessage('user', question);
+  input.value = '';
+  input.disabled = true;
+  sendBtn.disabled = true;
+
+  // Show thinking
+  addThinkingIndicator();
+
+  try {
+    const resp = await fetch('/api/ai/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question })
+    });
+    const data = await resp.json();
+    removeThinkingIndicator();
+
+    if (!resp.ok) {
+      addChatMessage('ai', '⚠️ ' + (data.error || 'Lỗi không xác định'));
+    } else {
+      addChatMessage('ai', data.answer);
+      addSourceLinks(data.sources);
+    }
+  } catch (err) {
+    removeThinkingIndicator();
+    addChatMessage('ai', '⚠️ Lỗi kết nối: ' + err.message);
+  }
+
+  input.disabled = false;
+  sendBtn.disabled = false;
+  input.focus();
+}
+
+function escapeHtmlChat(str) {
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+function formatAiAnswer(text) {
+  // Convert newlines to <br> and preserve basic formatting
+  return escapeHtmlChat(text).replace(/\n/g, '<br>');
+}
+</script>
+
+<% } %>

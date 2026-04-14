@@ -9,6 +9,7 @@ const { optionalAuth } = require("./middleware/auth");
 const authRoutes = require("./routes/auth");
 const docsRoutes = require("./routes/docs");
 const adminRoutes = require("./routes/admin");
+const aiRoutes = require("./routes/ai");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -27,6 +28,7 @@ app.set("views", path.join(__dirname, "views"));
 
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 app.use(optionalAuth);
 
@@ -40,6 +42,7 @@ app.get("/", (req, res) => res.redirect("/docs"));
 app.use("/", authRoutes);
 app.use("/docs", docsRoutes);
 app.use("/admin", adminRoutes);
+app.use("/api/ai", aiRoutes);
 
 app.use((req, res) => {
   res.status(404).render("error", {
@@ -70,6 +73,6 @@ if (!process.env.JWT_SECRET) {
 
   app.listen(PORT, HOST, () => {
     console.log(`Docs Manager: http://localhost:${PORT}`);
-    console.log(`Truy cập trên mạng LAN: http://192.168.1.73:${PORT}`);
+    console.log(`Truy cập trên mạng LAN: http://192.168.10.8:${PORT}`);
   });
 })();

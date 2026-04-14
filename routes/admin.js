@@ -7,12 +7,34 @@ const multer = require('multer');
 const db = require('../db');
 const { requireAdmin } = require('../middleware/auth');
 const { documentWithShares } = require('../lib/access');
+const { extractText, summarizeDocument } = require('../lib/ai');
 
 const router = express.Router();
 router.use(requireAdmin);
 
 const UPLOAD_ROOT = path.join(__dirname, '..', 'public', 'uploads');
 const PDF_CACHE = path.join(__dirname, '..', 'public', 'pdf_cache');
+
+/**
+ * Hàm tự động tóm tắt tài liệu chạy ngầm không block ứng dụng
+ */
+function autoSummarizeInBackground(docId, storedFilename, originalFilename, title) {
+  setTimeout(async () => {
+    try {
+      const filePath = path.join(UPLOAD_ROOT, storedFilename);
+      if (!fs.existsSync(filePath)) return;
+      
+      const text = await extractText(filePath, originalFilename);
+      if (!text || text.trim().length < 50) return;
+
+      const summary = await summarizeDocument(text, title);
+      db.prepare('UPDATE documents SET ai_summary = ? WHERE id = ?').run(summary, docId);
+      console.log(`[AI] Đã tóm tắt tự động xong cho tài liệu ID ${docId}`);
+    } catch (err) {
+      console.error(`[AI Auto-Summarize] Lỗi tài liệu ID ${docId}:`, err.message);
+    }
+  }, 2000); // Đợi 2s để file ổn định
+}
 
 function fixOriginalName(file) {
   file.originalname = Buffer.from(file.originalname, 'latin1').toString('utf-8');
@@ -350,6 +372,10 @@ router.post('/documents', uploadFields, (req, res) => {
       if (k !== owner) insShare.run(docId, k);
     }
     saveTags(docId, parseTags(req.body));
+    
+    // Khởi chạy ngầm hàm tóm tắt ngay sau khi upload
+    autoSummarizeInBackground(docId, mainFile.filename, mainFile.originalname, title.trim());
+
     res.redirect('/admin/documents');
   }
 );
@@ -428,9 +454,13 @@ router.post('/documents/:id', uploadFields, (req, res) => {
         `UPDATE documents SET
           title = ?, source_label = ?, stored_filename = ?, original_filename = ?,
           mime_type = ?, is_public = ?, owner_khoa_id = ?, pdf_cache_filename = NULL,
+          ai_summary = NULL,
           updated_at = datetime('now'), banner_filename = ?
         WHERE id = ?`
       ).run(title.trim(), source_label.trim(), stored, original, mime, pub, owner, bannerFn, id);
+      
+      // Chạy ngầm AI tóm tắt lại vì file mới đã được thay thế
+      autoSummarizeInBackground(id, stored, original, title.trim());
     } else {
       db.prepare(
         `UPDATE documents SET

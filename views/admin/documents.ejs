@@ -24,7 +24,7 @@
   <% docs.forEach(function (d) { %>
     <li class="flex flex-wrap items-center justify-between gap-3 px-4 py-4 cursor-pointer transition-all hover:bg-slate-50" onclick="if(!event.target.closest('a,button,form'))location.href='/docs/<%= d.id %>'">
       <div>
-        <span class="font-medium text-brand-700"><%= d.title %></span>
+        <span class="font-medium text-brand-700"><%= d.id %>. <%= d.title %></span>
         <p class="text-sm text-slate-500">Nguồn: <%= d.source_label %>
           <% if (d.is_public) { %><span class="ml-2 text-emerald-700">[công khai]</span><% } %>
         </p>

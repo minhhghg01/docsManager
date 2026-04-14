@@ -68,13 +68,283 @@
   </div>
 </div>
 
-<!-- Document viewer -->
-<div class="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 shadow-inner">
+<!-- Tabs for toggling views -->
+<div class="mt-6 flex border-b border-slate-200">
+  <button id="tab-full" class="w-1/3 py-3 px-2 text-center border-b-2 font-medium text-sm transition-all border-brand-600 text-brand-600 bg-brand-50" onclick="switchTab('full')">
+    📄 Bản gốc đầy đủ
+  </button>
+  <button id="tab-summary" class="w-1/3 py-3 px-2 text-center border-b-2 border-transparent font-medium text-sm text-slate-500 hover:text-slate-700 hover:border-slate-300 transition-all" onclick="switchTab('summary')">
+    ✨ Tóm tắt AI
+  </button>
+  <button id="tab-chat" class="w-1/3 py-3 px-2 text-center border-b-2 border-transparent font-medium text-sm text-slate-500 hover:text-slate-700 hover:border-slate-300 transition-all" onclick="switchTab('chat')">
+    💬 Hỏi đáp AI (Tài liệu này)
+  </button>
+</div>
+
+<!-- ================= AI Summary Section ================= -->
+<div id="view-summary" class="hidden mt-5 rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-purple-50 p-6 shadow-sm">
+  <div class="flex items-center justify-between mb-4">
+    <div class="flex items-center gap-2">
+      <span class="text-xl">✨</span>
+      <h3 class="text-sm font-bold text-indigo-700 uppercase tracking-wider">Bản tóm tắt tự động</h3>
+    </div>
+    <div class="flex items-center gap-2" id="summary-actions">
+      <% if (doc.ai_summary && user && user.role === 'admin') { %>
+        <button onclick="regenerateSummary(<%= doc.id %>)"
+          class="inline-flex items-center gap-1.5 rounded-lg border border-indigo-300 bg-white px-3 py-1.5 text-xs font-medium text-indigo-600 transition-all hover:bg-indigo-100 hover:shadow-sm"
+          id="btn-regenerate" title="Tạo lại tóm tắt">
+          <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182"/></svg>
+          Tạo lại
+        </button>
+      <% } %>
+    </div>
+  </div>
+
+  <div id="summary-content">
+    <% if (doc.ai_summary) { %>
+      <div class="prose prose-sm prose-indigo max-w-none bg-white/60 p-4 rounded-xl border border-indigo-100/50">
+        <p class="text-sm text-slate-700 leading-relaxed whitespace-pre-line"><%= doc.ai_summary %></p>
+      </div>
+    <% } else { %>
+      <div class="text-center py-8 bg-white/50 rounded-xl border border-indigo-100 mb-2">
+        <p class="text-sm text-slate-500 mb-4" id="no-summary-text">Đang tự động tạo hoặc chưa có tóm tắt cho tài liệu này (nhấn F5 để thử lại sau ít giây).</p>
+        <% if (user && user.role === 'admin') { %>
+          <button onclick="generateSummary(<%= doc.id %>)" id="btn-generate-summary"
+            class="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-all hover:bg-indigo-700 hover:shadow-md active:scale-95">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 0 0-2.455 2.456Z"/></svg>
+            Tạo thủ công
+          </button>
+        <% } %>
+      </div>
+    <% } %>
+  </div>
+
+  <!-- Loading state -->
+  <div id="summary-loading" class="hidden">
+    <div class="flex items-center justify-center gap-3 py-8">
+      <div class="flex gap-1.5">
+        <span class="h-2.5 w-2.5 rounded-full bg-indigo-500 animate-bounce" style="animation-delay:0ms"></span>
+        <span class="h-2.5 w-2.5 rounded-full bg-indigo-500 animate-bounce" style="animation-delay:150ms"></span>
+        <span class="h-2.5 w-2.5 rounded-full bg-indigo-500 animate-bounce" style="animation-delay:300ms"></span>
+      </div>
+      <span class="text-sm font-medium text-indigo-600">Đang phân tích và tóm tắt...</span>
+    </div>
+  </div>
+</div>
+
+<!-- ================= Full Document Viewer ================= -->
+<div id="view-full" class="block mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 shadow-inner">
   <iframe
     title="Xem tài liệu"
     src="/docs/<%= doc.id %>/view"
-    class="h-[95vh] w-full bg-white"
+    class="h-[95vh] w-full bg-white border-0"
   ></iframe>
 </div>
+
+<!-- ================= AI Document Chat (NotebookLM) ================= -->
+<div id="view-chat" class="hidden mt-5 rounded-2xl border border-slate-200 bg-white shadow-sm flex flex-col overflow-hidden" style="height: 80vh;">
+  <!-- Header -->
+  <div class="flex items-center gap-3 bg-slate-50 border-b border-slate-200 px-5 py-4">
+    <div class="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 text-indigo-600">
+      <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 20.25c4.97 0 9-3.694 9-8.25s-4.03-8.25-9-8.25S3 7.444 3 12c0 2.104.859 4.023 2.273 5.48.432.447.74 1.04.586 1.641a4.483 4.483 0 0 1-.923 1.785A5.969 5.969 0 0 0 6 21c1.282 0 2.47-.402 3.445-1.087.81.22 1.668.337 2.555.337Z"/>
+      </svg>
+    </div>
+    <div>
+      <h3 class="text-base font-bold text-slate-800">Trợ lý AI - NotebookLM</h3>
+      <p class="text-xs text-slate-500">Đặt câu hỏi cụ thể về dữ liệu có trong tài liệu này</p>
+    </div>
+  </div>
+
+  <!-- Messages -->
+  <div id="doc-chat-messages" class="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/50">
+    <div class="flex gap-3">
+      <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-100">
+        <span class="text-sm">🤖</span>
+      </div>
+      <div class="rounded-2xl rounded-tl-sm bg-white border border-slate-200 shadow-sm px-4 py-3 text-sm text-slate-700 max-w-[85%]">
+        Xin chào! Tôi có thể đọc và trả lời bất kỳ thông tin nào liên quan đến tài liệu <strong>"<%= doc.title %>"</strong>. Bạn muốn hỏi gì?
+      </div>
+    </div>
+  </div>
+
+  <!-- Input -->
+  <div class="border-t border-slate-200 bg-white p-4">
+    <form onsubmit="sendDocChat(event)" class="flex gap-2">
+      <input
+        type="text"
+        id="doc-chat-input"
+        placeholder="Hỏi về tài liệu này..."
+        autocomplete="off"
+        class="flex-1 rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-700 placeholder-slate-400 transition-all focus:bg-white focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+      />
+      <button type="submit" id="doc-chat-send"
+        class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white transition-all hover:bg-indigo-700 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
+        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5"/>
+        </svg>
+      </button>
+    </form>
+  </div>
+</div>
+
+
+<% if (user && user.role === 'admin') { %>
+<script>
+async function generateSummary(docId) {
+  const contentEl = document.getElementById('summary-content');
+  const loadingEl = document.getElementById('summary-loading');
+  const actionsEl = document.getElementById('summary-actions');
+
+  contentEl.classList.add('hidden');
+  loadingEl.classList.remove('hidden');
+
+  try {
+    const resp = await fetch('/api/ai/summarize/' + docId, { method: 'POST' });
+    const data = await resp.json();
+
+    if (!resp.ok) {
+      throw new Error(data.error || 'Lỗi không xác định');
+    }
+
+    loadingEl.classList.add('hidden');
+    contentEl.classList.remove('hidden');
+    contentEl.innerHTML = '<p class="text-sm text-slate-700 leading-relaxed">' + escapeHtml(data.summary) + '</p>';
+
+    actionsEl.innerHTML = `
+      <button onclick="regenerateSummary(${docId})"
+        class="inline-flex items-center gap-1 rounded-lg border border-indigo-300 bg-white px-2.5 py-1 text-xs font-medium text-indigo-600 transition-all hover:bg-indigo-100 hover:shadow-sm"
+        title="Tạo lại tóm tắt">
+        <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182"/></svg>
+        Tạo lại
+      </button>`;
+  } catch (err) {
+    loadingEl.classList.add('hidden');
+    contentEl.classList.remove('hidden');
+    contentEl.innerHTML = '<p class="text-sm text-red-500">⚠️ ' + escapeHtml(err.message) + '</p>';
+  }
+}
+
+async function regenerateSummary(docId) {
+  // Xóa cache trước
+  await fetch('/api/ai/summarize/' + docId, { method: 'DELETE' });
+  // Tạo lại
+  generateSummary(docId);
+}
+
+function escapeHtml(str) {
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+</script>
+<% } %>
+
+<script>
+function switchTab(tab) {
+  const btnFull = document.getElementById('tab-full');
+  const btnSummary = document.getElementById('tab-summary');
+  const btnChat = document.getElementById('tab-chat');
+  const viewFull = document.getElementById('view-full');
+  const viewSummary = document.getElementById('view-summary');
+  const viewChat = document.getElementById('view-chat');
+
+  // Xóa mọi active + hiển thị trước
+  viewFull.classList.remove('block'); viewFull.classList.add('hidden');
+  viewSummary.classList.remove('block'); viewSummary.classList.add('hidden');
+  viewChat.classList.remove('block', 'flex'); viewChat.classList.add('hidden');
+
+  btnFull.className = "w-1/3 py-3 px-2 text-center border-b-2 border-transparent font-medium text-sm text-slate-500 hover:text-slate-700 hover:border-slate-300 transition-all";
+  btnSummary.className = "w-1/3 py-3 px-2 text-center border-b-2 border-transparent font-medium text-sm text-slate-500 hover:text-slate-700 hover:border-slate-300 transition-all";
+  btnChat.className = "w-1/3 py-3 px-2 text-center border-b-2 border-transparent font-medium text-sm text-slate-500 hover:text-slate-700 hover:border-slate-300 transition-all";
+
+  if (tab === 'full') {
+    viewFull.classList.remove('hidden'); viewFull.classList.add('block');
+    btnFull.className = "w-1/3 py-3 px-2 text-center border-b-2 font-medium text-sm transition-all border-brand-600 text-brand-600 bg-brand-50";
+  } else if (tab === 'summary') {
+    viewSummary.classList.remove('hidden'); viewSummary.classList.add('block');
+    btnSummary.className = "w-1/3 py-3 px-2 text-center border-b-2 font-medium text-sm transition-all border-indigo-500 text-indigo-600 bg-indigo-50";
+  } else if (tab === 'chat') {
+    viewChat.classList.remove('hidden'); viewChat.classList.add('flex');
+    btnChat.className = "w-1/3 py-3 px-2 text-center border-b-2 font-medium text-sm transition-all border-pink-500 text-pink-600 bg-pink-50";
+  }
+}
+
+// Logic Chat trực tiếp vào tài liệu này (NotebookLM)
+async function sendDocChat(e) {
+  e.preventDefault();
+  const input = document.getElementById('doc-chat-input');
+  const sendBtn = document.getElementById('doc-chat-send');
+  const container = document.getElementById('doc-chat-messages');
+  const question = input.value.trim();
+  if (!question) return;
+
+  // Add User msg
+  const userMsg = document.createElement('div');
+  userMsg.className = 'flex justify-end gap-3 ai-msg-animate';
+  userMsg.innerHTML = `<div class="rounded-2xl rounded-tr-sm bg-indigo-600 px-4 py-3 text-sm text-white shadow-sm max-w-[85%]">${escapeHtml(question)}</div>`;
+  container.appendChild(userMsg);
+  container.scrollTop = container.scrollHeight;
+
+  input.value = '';
+  input.disabled = true;
+  sendBtn.disabled = true;
+
+  // Add thinking dot
+  const thinkingId = 'doc-thinking-' + Date.now();
+  const thinkingWait = document.createElement('div');
+  thinkingWait.id = thinkingId;
+  thinkingWait.className = 'flex gap-3 ai-msg-animate';
+  thinkingWait.innerHTML = `
+    <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-100">
+      <span class="text-sm">🤖</span>
+    </div>
+    <div class="rounded-2xl rounded-tl-sm bg-white border border-slate-200 shadow-sm px-4 py-3 flex items-center gap-1.5">
+      <span class="h-2 w-2 rounded-full bg-indigo-400 animate-bounce" style="animation-delay:0ms"></span>
+      <span class="h-2 w-2 rounded-full bg-indigo-400 animate-bounce" style="animation-delay:150ms"></span>
+      <span class="h-2 w-2 rounded-full bg-indigo-400 animate-bounce" style="animation-delay:300ms"></span>
+    </div>`;
+  container.appendChild(thinkingWait);
+  container.scrollTop = container.scrollHeight;
+
+  try {
+    const docId = <%= doc.id %>;
+    const resp = await fetch('/api/ai/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question, docId })
+    });
+    const data = await resp.json();
+    document.getElementById(thinkingId).remove();
+
+    const aiMsg = document.createElement('div');
+    aiMsg.className = 'flex gap-3 ai-msg-animate';
+    
+    if (!resp.ok) {
+      aiMsg.innerHTML = `<div class="rounded-2xl rounded-tl-sm bg-red-50 border border-red-100 px-4 py-3 text-sm text-red-600 max-w-[85%]">⚠️ Lỗi: ${escapeHtml(data.error || 'Không xác định')}</div>`;
+    } else {
+      const formatted = escapeHtml(data.answer).replace(/\n/g, '<br>');
+      aiMsg.innerHTML = `
+      <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-100">
+        <span class="text-sm">🤖</span>
+      </div>
+      <div class="rounded-2xl rounded-tl-sm bg-white border border-slate-200 shadow-sm px-4 py-3 text-sm text-slate-700 max-w-[85%] leading-relaxed">${formatted}</div>`;
+    }
+    
+    container.appendChild(aiMsg);
+  } catch (err) {
+    document.getElementById(thinkingId)?.remove();
+    const errMsg = document.createElement('div');
+    errMsg.className = 'flex gap-3 ai-msg-animate';
+    errMsg.innerHTML = `<div class="rounded-2xl rounded-tl-sm bg-red-50 border border-red-100 px-4 py-3 text-sm text-red-600 max-w-[85%]">⚠️ Lỗi mạng: ${escapeHtml(err.message)}</div>`;
+    container.appendChild(errMsg);
+  }
+
+  container.scrollTop = container.scrollHeight;
+  input.disabled = false;
+  sendBtn.disabled = false;
+  input.focus();
+}
+</script>
 
 <%- include('../partials/footer') %>

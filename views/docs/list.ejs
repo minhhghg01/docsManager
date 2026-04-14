@@ -111,7 +111,7 @@
         <% if (d.source_label) { %>
           <span class="mb-1 text-xs font-medium uppercase tracking-wider text-brand-500"><%= d.source_label %></span>
         <% } %>
-        <h3 class="font-semibold text-slate-800 transition-colors group-hover:text-brand-700 line-clamp-2"><%= d.title %></h3>
+        <h3 class="font-semibold text-slate-800 transition-colors group-hover:text-brand-700 line-clamp-2"><%= d.id %>. <%= d.title %></h3>
         <% if (d.tags && d.tags.length) { %>
           <div class="mt-2 flex flex-wrap gap-1">
             <% d.tags.forEach(function (t) { %>
