@@ -123,8 +123,8 @@ router.get('/', (req, res) => {
     : [];
   const deptId = req.query.dept || '';
   const pub = req.query.pub || '';
-  const psRaw = req.query.ps || '9';
-  const pageSize = psRaw === 'all' ? 0 : parseInt(psRaw, 10) || 9;
+  const psRaw = req.query.ps || '6';
+  const pageSize = psRaw === 'all' ? 0 : parseInt(psRaw, 10) || 6;
   const page = parseInt(req.query.page || '1', 10) || 1;
 
   const allDocs = listVisibleDocs(req.user, {
