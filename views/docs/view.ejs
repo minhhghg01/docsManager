@@ -1,301 +1,352 @@
 <%- include('../partials/header') %>
 
-<!-- Back link -->
-<div class="mb-4">
-  <a href="/docs" class="inline-flex items-center gap-1 text-sm text-slate-500 transition-all hover:text-brand-600">
-    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/></svg>
-    Quay lại
-  </a>
-</div>
-
-<!-- Document info card -->
-<div class="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6 shadow-sm">
-  <div class="flex flex-wrap items-start justify-between gap-4">
-    <div class="min-w-0 flex-1">
-      <!-- Badges -->
-      <div class="flex flex-wrap items-center gap-2">
-        <% if (doc.source_label) { %>
-          <span class="inline-flex items-center rounded-full bg-brand-600 px-3 py-1 text-xs font-bold uppercase tracking-wider text-white shadow-sm"><%= doc.source_label %></span>
-        <% } %>
-        <% if (doc.is_public) { %>
-          <span class="inline-flex items-center rounded-full bg-emerald-500 px-3 py-1 text-xs font-bold text-white shadow-sm">Công khai</span>
-        <% } %>
-      </div>
-
-      <!-- Title -->
-      <h1 class="mt-3 text-2xl font-bold text-slate-800 dark:text-white"><%= doc.title %></h1>
-
-      <!-- Filename -->
-      <p class="mt-1.5 text-sm text-slate-500 dark:text-slate-400"><%= doc.original_filename %></p>
-
-      <!-- Dates -->
-      <div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-400">
-        <span class="inline-flex items-center gap-1.5">
-          <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5"/></svg>
-          Đăng: <%= doc.created_at ? new Date(doc.created_at + 'Z').toLocaleString('vi-VN', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '—' %>
-        </span>
-        <% if (doc.updated_at && doc.updated_at !== doc.created_at) { %>
-          <span class="inline-flex items-center gap-1.5">
-            <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
-            Cập nhật: <%= new Date(doc.updated_at + 'Z').toLocaleString('vi-VN', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }) %>
-          </span>
-        <% } %>
-      </div>
-
-      <!-- Tags -->
-      <% if (doc.tags && doc.tags.length) { %>
-        <div class="mt-3 flex flex-wrap gap-1.5">
-          <% doc.tags.forEach(function (t) { %>
-            <a href="/docs?tags=<%= encodeURIComponent(t) %>" class="rounded-full border border-brand-200 bg-brand-50 px-3 py-0.5 text-xs font-medium text-brand-600 transition-all hover:bg-brand-100"><%= t %></a>
-          <% }); %>
-        </div>
-      <% } %>
-    </div>
-
-    <!-- Action buttons -->
-    <div class="flex shrink-0 gap-2">
-      <a href="/docs/<%= doc.id %>/download" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-200 transition-all hover:bg-slate-100 dark:hover:bg-slate-600 hover:shadow-sm">
-        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
-        Tải file gốc
-      </a>
-      <% if (user && user.role === 'admin') { %>
-        <a href="/admin/documents/<%= doc.id %>/edit" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-200 transition-all hover:bg-slate-100 dark:hover:bg-slate-600 hover:shadow-sm">
-          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125"/></svg>
-          Sửa
-        </a>
-      <% } %>
-    </div>
-  </div>
-</div>
-
-<!-- Tabs for toggling views -->
-<div class="mt-6 flex border-b border-slate-200">
-  <button id="tab-full" class="w-1/3 py-3 px-2 text-center border-b-2 font-medium text-sm transition-all border-brand-600 text-brand-600 bg-brand-50" onclick="switchTab('full')">
-    📄 Bản gốc đầy đủ
-  </button>
-  <button id="tab-summary" class="w-1/3 py-3 px-2 text-center border-b-2 border-transparent font-medium text-sm text-slate-500 hover:text-slate-700 hover:border-slate-300 transition-all" onclick="switchTab('summary')">
-    ✨ Tóm tắt AI
-  </button>
-  <button id="tab-chat" class="w-1/3 py-3 px-2 text-center border-b-2 border-transparent font-medium text-sm text-slate-500 hover:text-slate-700 hover:border-slate-300 transition-all" onclick="switchTab('chat')">
-    💬 Hỏi đáp AI (Tài liệu này)
-  </button>
-</div>
-
-<!-- ================= AI Summary Section ================= -->
-<div id="view-summary" class="hidden mt-5 rounded-2xl border border-indigo-200 dark:border-indigo-900 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-slate-800 dark:to-slate-900 p-6 shadow-sm">
-  <div class="flex items-center justify-between mb-4">
-    <div class="flex items-center gap-2">
-      <span class="text-xl">✨</span>
-      <h3 class="text-sm font-bold text-indigo-700 dark:text-indigo-400 uppercase tracking-wider">Bản tóm tắt tự động</h3>
-    </div>
-    <div class="flex items-center gap-2" id="summary-actions">
-      <% if (doc.ai_summary && user && user.role === 'admin') { %>
-        <button onclick="regenerateSummary(<%= doc.id %>)"
-          class="inline-flex items-center gap-1.5 rounded-lg border border-indigo-300 dark:border-indigo-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-medium text-indigo-600 dark:text-indigo-400 transition-all hover:bg-indigo-100 dark:hover:bg-indigo-900 hover:shadow-sm"
-          id="btn-regenerate" title="Tạo lại tóm tắt">
-          <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182"/></svg>
-          Tạo lại
-        </button>
-      <% } %>
-    </div>
-  </div>
-
-  <div id="summary-content">
-    <% if (doc.ai_summary) { %>
-      <div class="prose prose-sm prose-indigo max-w-none bg-white/60 dark:bg-slate-800/80 p-4 rounded-xl border border-indigo-100/50 dark:border-indigo-800/50">
-        <p class="text-sm text-slate-700 dark:text-slate-200 leading-relaxed whitespace-pre-line"><%= doc.ai_summary %></p>
-      </div>
-    <% } else { %>
-      <div class="text-center py-8 bg-white/50 dark:bg-slate-800/50 rounded-xl border border-indigo-100 dark:border-indigo-800 mb-2">
-        <p class="text-sm text-slate-500 dark:text-slate-400 mb-4" id="no-summary-text">Đang tự động tạo hoặc chưa có tóm tắt cho tài liệu này (nhấn F5 để thử lại sau ít giây).</p>
-        <% if (user && user.role === 'admin') { %>
-          <button onclick="generateSummary(<%= doc.id %>)" id="btn-generate-summary"
-            class="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-all hover:bg-indigo-700 hover:shadow-md active:scale-95">
-            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 0 0-2.455 2.456Z"/></svg>
-            Tạo thủ công
-          </button>
-        <% } %>
-      </div>
-    <% } %>
-  </div>
-
-  <!-- Loading state -->
-  <div id="summary-loading" class="hidden">
-    <div class="flex items-center justify-center gap-3 py-8">
-      <div class="flex gap-1.5">
-        <span class="h-2.5 w-2.5 rounded-full bg-indigo-500 animate-bounce" style="animation-delay:0ms"></span>
-        <span class="h-2.5 w-2.5 rounded-full bg-indigo-500 animate-bounce" style="animation-delay:150ms"></span>
-        <span class="h-2.5 w-2.5 rounded-full bg-indigo-500 animate-bounce" style="animation-delay:300ms"></span>
-      </div>
-      <span class="text-sm font-medium text-indigo-600 dark:text-indigo-400">Đang phân tích và tóm tắt...</span>
-    </div>
-  </div>
-</div>
-
-<!-- ================= Full Document Viewer ================= -->
-<div id="view-full" class="block mt-5 overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-900 shadow-inner">
-  <iframe
-    title="Xem tài liệu"
-    src="/docs/<%= doc.id %>/view"
-    class="h-[95vh] w-full bg-white border-0 filter dark:invert"
-  ></iframe>
-</div>
-
-<!-- ================= AI Document Chat (NotebookLM) ================= -->
-<div id="view-chat" class="hidden mt-5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm flex flex-col overflow-hidden" style="height: 80vh;">
-  <!-- Header -->
-  <div class="flex items-center gap-3 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 px-5 py-4">
-    <div class="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 text-indigo-600">
-      <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M12 20.25c4.97 0 9-3.694 9-8.25s-4.03-8.25-9-8.25S3 7.444 3 12c0 2.104.859 4.023 2.273 5.48.432.447.74 1.04.586 1.641a4.483 4.483 0 0 1-.923 1.785A5.969 5.969 0 0 0 6 21c1.282 0 2.47-.402 3.445-1.087.81.22 1.668.337 2.555.337Z"/>
+  <!-- Back link -->
+  <div class="mb-4">
+    <a href="/docs" class="inline-flex items-center gap-1 text-sm text-slate-500 transition-all hover:text-brand-600">
+      <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
       </svg>
-    </div>
-    <div>
-      <h3 class="text-base font-bold text-slate-800 dark:text-slate-100">Trợ lý AI - NotebookLM</h3>
-      <p class="text-xs text-slate-500 dark:text-slate-400">Đặt câu hỏi cụ thể về dữ liệu có trong tài liệu này</p>
+      Quay lại
+    </a>
+  </div>
+
+  <!-- Document info card -->
+  <div class="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6 shadow-sm">
+    <div class="flex flex-wrap items-start justify-between gap-4">
+      <div class="min-w-0 flex-1">
+        <!-- Badges -->
+        <div class="flex flex-wrap items-center gap-2">
+          <% if (doc.source_label) { %>
+            <span
+              class="inline-flex items-center rounded-full bg-brand-600 px-3 py-1 text-xs font-bold uppercase tracking-wider text-white shadow-sm">
+              <%= doc.source_label %>
+            </span>
+            <% } %>
+              <% if (doc.is_public) { %>
+                <span
+                  class="inline-flex items-center rounded-full bg-emerald-500 px-3 py-1 text-xs font-bold text-white shadow-sm">Công
+                  khai</span>
+                <% } %>
+        </div>
+
+        <!-- Title -->
+        <h1 class="mt-3 text-2xl font-bold text-slate-800 dark:text-white">
+          <%= doc.title %>
+        </h1>
+
+        <!-- Filename -->
+        <p class="mt-1.5 text-sm text-slate-500 dark:text-slate-400">
+          <%= doc.original_filename %>
+        </p>
+
+        <!-- Dates -->
+        <div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-400">
+          <span class="inline-flex items-center gap-1.5">
+            <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
+            </svg>
+            Đăng: <%= doc.created_at ? new Date(doc.created_at + 'Z' ).toLocaleString('vi-VN', { day:'2-digit',
+              month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '—' %>
+          </span>
+          <% if (doc.updated_at && doc.updated_at !==doc.created_at) { %>
+            <span class="inline-flex items-center gap-1.5">
+              <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+              </svg>
+              Cập nhật: <%= new Date(doc.updated_at + 'Z' ).toLocaleString('vi-VN', { day:'2-digit', month:'2-digit',
+                year:'numeric', hour:'2-digit', minute:'2-digit' }) %>
+            </span>
+            <% } %>
+        </div>
+
+        <!-- Tags -->
+        <% if (doc.tags && doc.tags.length) { %>
+          <div class="mt-3 flex flex-wrap gap-1.5">
+            <% doc.tags.forEach(function (t) { %>
+              <a href="/docs?tags=<%= encodeURIComponent(t) %>"
+                class="rounded-full border border-brand-200 bg-brand-50 px-3 py-0.5 text-xs font-medium text-brand-600 transition-all hover:bg-brand-100">
+                <%= t %>
+              </a>
+              <% }); %>
+          </div>
+          <% } %>
+      </div>
+
+      <!-- Action buttons -->
+      <div class="flex shrink-0 gap-2">
+        <a href="/docs/<%= doc.id %>/download"
+          class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-200 transition-all hover:bg-slate-100 dark:hover:bg-slate-600 hover:shadow-sm">
+          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round"
+              d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+          </svg>
+          Tải file gốc
+        </a>
+        <% if (user && user.role==='admin' ) { %>
+          <a href="/admin/documents/<%= doc.id %>/edit"
+            class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-200 transition-all hover:bg-slate-100 dark:hover:bg-slate-600 hover:shadow-sm">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" />
+            </svg>
+            Sửa
+          </a>
+          <% } %>
+      </div>
     </div>
   </div>
 
-  <!-- Messages -->
-  <div id="doc-chat-messages" class="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/50 dark:bg-slate-900/50">
-    <div class="flex gap-3">
-      <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-100">
-        <span class="text-sm">🤖</span>
+  <!-- Tabs for toggling views -->
+  <div class="mt-6 flex border-b border-slate-200">
+    <button id="tab-full"
+      class="w-1/3 py-3 px-2 text-center border-b-2 font-medium text-sm transition-all border-brand-600 text-brand-600 bg-brand-50"
+      onclick="switchTab('full')">
+      📄 Bản gốc đầy đủ
+    </button>
+    <button id="tab-summary"
+      class="w-1/3 py-3 px-2 text-center border-b-2 border-transparent font-medium text-sm text-slate-500 hover:text-slate-700 hover:border-slate-300 transition-all"
+      onclick="switchTab('summary')">
+      ✨ Tóm tắt AI
+    </button>
+    <button id="tab-chat"
+      class="w-1/3 py-3 px-2 text-center border-b-2 border-transparent font-medium text-sm text-slate-500 hover:text-slate-700 hover:border-slate-300 transition-all"
+      onclick="switchTab('chat')">
+      💬 Hỏi đáp AI (Tài liệu này)
+    </button>
+  </div>
+
+  <!-- ================= AI Summary Section ================= -->
+  <div id="view-summary"
+    class="hidden mt-5 rounded-2xl border border-indigo-200 dark:border-indigo-900 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-slate-800 dark:to-slate-900 p-6 shadow-sm">
+    <div class="flex items-center justify-between mb-4">
+      <div class="flex items-center gap-2">
+        <span class="text-xl">✨</span>
+        <h3 class="text-sm font-bold text-indigo-700 dark:text-indigo-400 uppercase tracking-wider">Bản tóm tắt tự động
+        </h3>
       </div>
-      <div class="rounded-2xl rounded-tl-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm px-4 py-3 text-sm text-slate-700 dark:text-slate-200 max-w-[85%]">
-        Xin chào! Tôi có thể đọc và trả lời bất kỳ thông tin nào liên quan đến tài liệu <strong>"<%= doc.title %>"</strong>. Bạn muốn hỏi gì?
+      <div class="flex items-center gap-2" id="summary-actions">
+        <% if (doc.ai_summary && user && user.role==='admin' ) { %>
+          <button onclick="regenerateSummary(<%= doc.id %>)"
+            class="inline-flex items-center gap-1.5 rounded-lg border border-indigo-300 dark:border-indigo-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-medium text-indigo-600 dark:text-indigo-400 transition-all hover:bg-indigo-100 dark:hover:bg-indigo-900 hover:shadow-sm"
+            id="btn-regenerate" title="Tạo lại tóm tắt">
+            <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182" />
+            </svg>
+            Tạo lại
+          </button>
+          <% } %>
+      </div>
+    </div>
+
+    <div id="summary-content">
+      <% if (doc.ai_summary) { %>
+        <div
+          class="prose prose-sm prose-indigo max-w-none bg-white/60 dark:bg-slate-800/80 p-4 rounded-xl border border-indigo-100/50 dark:border-indigo-800/50">
+          <p class="text-sm text-slate-700 dark:text-slate-200 leading-relaxed whitespace-pre-line">
+            <%= doc.ai_summary %>
+          </p>
+        </div>
+        <% } else { %>
+          <div
+            class="text-center py-8 bg-white/50 dark:bg-slate-800/50 rounded-xl border border-indigo-100 dark:border-indigo-800 mb-2">
+            <p class="text-sm text-slate-500 dark:text-slate-400 mb-4" id="no-summary-text">Đang tự động tạo hoặc chưa
+              có tóm tắt cho tài liệu này (nhấn F5 để thử lại sau ít giây).</p>
+            <% if (user && user.role==='admin' ) { %>
+              <button onclick="generateSummary(<%= doc.id %>)" id="btn-generate-summary"
+                class="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-all hover:bg-indigo-700 hover:shadow-md active:scale-95">
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 0 0-2.455 2.456Z" />
+                </svg>
+                Tạo thủ công
+              </button>
+              <% } %>
+          </div>
+          <% } %>
+    </div>
+
+    <!-- Loading state -->
+    <div id="summary-loading" class="hidden">
+      <div class="flex items-center justify-center gap-3 py-8">
+        <div class="flex gap-1.5">
+          <span class="h-2.5 w-2.5 rounded-full bg-indigo-500 animate-bounce" style="animation-delay:0ms"></span>
+          <span class="h-2.5 w-2.5 rounded-full bg-indigo-500 animate-bounce" style="animation-delay:150ms"></span>
+          <span class="h-2.5 w-2.5 rounded-full bg-indigo-500 animate-bounce" style="animation-delay:300ms"></span>
+        </div>
+        <span class="text-sm font-medium text-indigo-600 dark:text-indigo-400">Đang phân tích và tóm tắt...</span>
       </div>
     </div>
   </div>
 
-  <!-- Input -->
-  <div class="border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
-    <form onsubmit="sendDocChat(event)" class="flex gap-2">
-      <input
-        type="text"
-        id="doc-chat-input"
-        placeholder="Hỏi về tài liệu này..."
-        autocomplete="off"
-        class="flex-1 rounded-xl border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 px-4 py-3 text-sm text-slate-700 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 transition-all focus:bg-white dark:focus:bg-slate-800 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
-      />
-      <button type="submit" id="doc-chat-send"
-        class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white transition-all hover:bg-indigo-700 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
-        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5"/>
+  <!-- ================= Full Document Viewer ================= -->
+  <div id="view-full"
+    class="block mt-5 overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-900 shadow-inner">
+    <iframe title="Xem tài liệu" src="/docs/<%= doc.id %>/view"
+      class="h-[95vh] w-full bg-white border-0 filter dark:invert"></iframe>
+  </div>
+
+  <!-- ================= AI Document Chat (NotebookLM) ================= -->
+  <div id="view-chat"
+    class="hidden mt-5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm flex flex-col overflow-hidden"
+    style="height: 80vh;">
+    <!-- Header -->
+    <div
+      class="flex items-center gap-3 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 px-5 py-4">
+      <div class="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 text-indigo-600">
+        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round"
+            d="M12 20.25c4.97 0 9-3.694 9-8.25s-4.03-8.25-9-8.25S3 7.444 3 12c0 2.104.859 4.023 2.273 5.48.432.447.74 1.04.586 1.641a4.483 4.483 0 0 1-.923 1.785A5.969 5.969 0 0 0 6 21c1.282 0 2.47-.402 3.445-1.087.81.22 1.668.337 2.555.337Z" />
         </svg>
-      </button>
-    </form>
+      </div>
+      <div>
+        <h3 class="text-base font-bold text-slate-800 dark:text-slate-100">AI Hỏi đáp</h3>
+        <p class="text-xs text-slate-500 dark:text-slate-400">Hỏi đáp trực tiếp nội dung trong tài liệu này</p>
+      </div>
+    </div>
+
+    <!-- Messages -->
+    <div id="doc-chat-messages" class="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/50 dark:bg-slate-900/50">
+      <div class="flex gap-3">
+        <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-100">
+          <span class="text-sm">🤖</span>
+        </div>
+        <div class="rounded-2xl rounded-tl-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm px-4 py-3 text-sm text-slate-700 dark:text-slate-200 max-w-[85%] relative">
+          <p class="mb-2">Xin chào! Tôi có thể đọc và trả lời bất kỳ thông tin nào liên quan đến tài liệu <strong>"<%= doc.title %>"</strong>. Bạn muốn hỏi gì?</p>
+          <button id="btn-tts-welcome" data-text="Xin chào! Tôi có thể đọc và trả lời bất kỳ thông tin nào liên quan đến tài liệu." onclick="speakText(this.dataset.text, this.id)" class="inline-flex items-center gap-1 text-xs font-medium text-brand-600 bg-brand-50 hover:bg-brand-100 dark:bg-slate-700 dark:text-brand-400 dark:hover:bg-slate-600 px-2 py-1 rounded transition-colors" title="Đọc văn bản">
+            <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.5-.62-1.5-1.5v-4.5c0-.88.62-1.5 1.5-1.5h2.24Z"/></svg>
+            Nghe đáp án
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Input -->
+    <div class="border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
+      <form onsubmit="sendDocChat(event)" class="flex gap-2">
+        <input type="text" id="doc-chat-input" placeholder="Hỏi về tài liệu này..." autocomplete="off"
+          class="flex-1 rounded-xl border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 px-4 py-3 text-sm text-slate-700 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 transition-all focus:bg-white dark:focus:bg-slate-800 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100" />
+        <button type="submit" id="doc-chat-send"
+          class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white transition-all hover:bg-indigo-700 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
+          <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round"
+              d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5" />
+          </svg>
+        </button>
+      </form>
+    </div>
   </div>
-</div>
 
 
-<% if (user && user.role === 'admin') { %>
-<script>
-async function generateSummary(docId) {
-  const contentEl = document.getElementById('summary-content');
-  const loadingEl = document.getElementById('summary-loading');
-  const actionsEl = document.getElementById('summary-actions');
+  <% if (user && user.role==='admin' ) { %>
+    <script>
+      async function generateSummary(docId) {
+        const contentEl = document.getElementById('summary-content');
+        const loadingEl = document.getElementById('summary-loading');
+        const actionsEl = document.getElementById('summary-actions');
 
-  contentEl.classList.add('hidden');
-  loadingEl.classList.remove('hidden');
+        contentEl.classList.add('hidden');
+        loadingEl.classList.remove('hidden');
 
-  try {
-    const resp = await fetch('/api/ai/summarize/' + docId, { method: 'POST' });
-    const data = await resp.json();
+        try {
+          const resp = await fetch('/api/ai/summarize/' + docId, { method: 'POST' });
+          const data = await resp.json();
 
-    if (!resp.ok) {
-      throw new Error(data.error || 'Lỗi không xác định');
-    }
+          if (!resp.ok) {
+            throw new Error(data.error || 'Lỗi không xác định');
+          }
 
-    loadingEl.classList.add('hidden');
-    contentEl.classList.remove('hidden');
-    contentEl.innerHTML = '<p class="text-sm text-slate-700 leading-relaxed">' + escapeHtml(data.summary) + '</p>';
+          loadingEl.classList.add('hidden');
+          contentEl.classList.remove('hidden');
+          contentEl.innerHTML = '<p class="text-sm text-slate-700 leading-relaxed">' + escapeHtml(data.summary) + '</p>';
 
-    actionsEl.innerHTML = `
+          actionsEl.innerHTML = `
       <button onclick="regenerateSummary(${docId})"
         class="inline-flex items-center gap-1 rounded-lg border border-indigo-300 bg-white px-2.5 py-1 text-xs font-medium text-indigo-600 transition-all hover:bg-indigo-100 hover:shadow-sm"
         title="Tạo lại tóm tắt">
         <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182"/></svg>
         Tạo lại
       </button>`;
-  } catch (err) {
-    loadingEl.classList.add('hidden');
-    contentEl.classList.remove('hidden');
-    contentEl.innerHTML = '<p class="text-sm text-red-500">⚠️ ' + escapeHtml(err.message) + '</p>';
-  }
-}
+        } catch (err) {
+          loadingEl.classList.add('hidden');
+          contentEl.classList.remove('hidden');
+          contentEl.innerHTML = '<p class="text-sm text-red-500">⚠️ ' + escapeHtml(err.message) + '</p>';
+        }
+      }
 
-async function regenerateSummary(docId) {
-  // Xóa cache trước
-  await fetch('/api/ai/summarize/' + docId, { method: 'DELETE' });
-  // Tạo lại
-  generateSummary(docId);
-}
+      async function regenerateSummary(docId) {
+        // Xóa cache trước
+        await fetch('/api/ai/summarize/' + docId, { method: 'DELETE' });
+        // Tạo lại
+        generateSummary(docId);
+      }
 
-function escapeHtml(str) {
-  const d = document.createElement('div');
-  d.textContent = str;
-  return d.innerHTML;
-}
-</script>
-<% } %>
+      function escapeHtml(str) {
+        const d = document.createElement('div');
+        d.textContent = str;
+        return d.innerHTML;
+      }
+    </script>
+    <% } %>
 
-<script>
-function switchTab(tab) {
-  const btnFull = document.getElementById('tab-full');
-  const btnSummary = document.getElementById('tab-summary');
-  const btnChat = document.getElementById('tab-chat');
-  const viewFull = document.getElementById('view-full');
-  const viewSummary = document.getElementById('view-summary');
-  const viewChat = document.getElementById('view-chat');
+      <script>
+        function switchTab(tab) {
+          const btnFull = document.getElementById('tab-full');
+          const btnSummary = document.getElementById('tab-summary');
+          const btnChat = document.getElementById('tab-chat');
+          const viewFull = document.getElementById('view-full');
+          const viewSummary = document.getElementById('view-summary');
+          const viewChat = document.getElementById('view-chat');
 
-  // Xóa mọi active + hiển thị trước
-  viewFull.classList.remove('block'); viewFull.classList.add('hidden');
-  viewSummary.classList.remove('block'); viewSummary.classList.add('hidden');
-  viewChat.classList.remove('block', 'flex'); viewChat.classList.add('hidden');
+          // Xóa mọi active + hiển thị trước
+          viewFull.classList.remove('block'); viewFull.classList.add('hidden');
+          viewSummary.classList.remove('block'); viewSummary.classList.add('hidden');
+          viewChat.classList.remove('block', 'flex'); viewChat.classList.add('hidden');
 
-  btnFull.className = "w-1/3 py-3 px-2 text-center border-b-2 border-transparent font-medium text-sm text-slate-500 hover:text-slate-700 hover:border-slate-300 transition-all";
-  btnSummary.className = "w-1/3 py-3 px-2 text-center border-b-2 border-transparent font-medium text-sm text-slate-500 hover:text-slate-700 hover:border-slate-300 transition-all";
-  btnChat.className = "w-1/3 py-3 px-2 text-center border-b-2 border-transparent font-medium text-sm text-slate-500 hover:text-slate-700 hover:border-slate-300 transition-all";
+          btnFull.className = "w-1/3 py-3 px-2 text-center border-b-2 border-transparent font-medium text-sm text-slate-500 hover:text-slate-700 hover:border-slate-300 transition-all";
+          btnSummary.className = "w-1/3 py-3 px-2 text-center border-b-2 border-transparent font-medium text-sm text-slate-500 hover:text-slate-700 hover:border-slate-300 transition-all";
+          btnChat.className = "w-1/3 py-3 px-2 text-center border-b-2 border-transparent font-medium text-sm text-slate-500 hover:text-slate-700 hover:border-slate-300 transition-all";
 
-  if (tab === 'full') {
-    viewFull.classList.remove('hidden'); viewFull.classList.add('block');
-    btnFull.className = "w-1/3 py-3 px-2 text-center border-b-2 font-medium text-sm transition-all border-brand-600 text-brand-600 bg-brand-50";
-  } else if (tab === 'summary') {
-    viewSummary.classList.remove('hidden'); viewSummary.classList.add('block');
-    btnSummary.className = "w-1/3 py-3 px-2 text-center border-b-2 font-medium text-sm transition-all border-indigo-500 text-indigo-600 bg-indigo-50";
-  } else if (tab === 'chat') {
-    viewChat.classList.remove('hidden'); viewChat.classList.add('flex');
-    btnChat.className = "w-1/3 py-3 px-2 text-center border-b-2 font-medium text-sm transition-all border-pink-500 text-pink-600 bg-pink-50";
-  }
-}
+          if (tab === 'full') {
+            viewFull.classList.remove('hidden'); viewFull.classList.add('block');
+            btnFull.className = "w-1/3 py-3 px-2 text-center border-b-2 font-medium text-sm transition-all border-brand-600 text-brand-600 bg-brand-50";
+          } else if (tab === 'summary') {
+            viewSummary.classList.remove('hidden'); viewSummary.classList.add('block');
+            btnSummary.className = "w-1/3 py-3 px-2 text-center border-b-2 font-medium text-sm transition-all border-indigo-500 text-indigo-600 bg-indigo-50";
+          } else if (tab === 'chat') {
+            viewChat.classList.remove('hidden'); viewChat.classList.add('flex');
+            btnChat.className = "w-1/3 py-3 px-2 text-center border-b-2 font-medium text-sm transition-all border-pink-500 text-pink-600 bg-pink-50";
+          }
+        }
 
-// Logic Chat trực tiếp vào tài liệu này (NotebookLM)
-async function sendDocChat(e) {
-  e.preventDefault();
-  const input = document.getElementById('doc-chat-input');
-  const sendBtn = document.getElementById('doc-chat-send');
-  const container = document.getElementById('doc-chat-messages');
-  const question = input.value.trim();
-  if (!question) return;
+        // Logic Chat trực tiếp vào tài liệu này (NotebookLM)
+        async function sendDocChat(e) {
+          e.preventDefault();
+          const input = document.getElementById('doc-chat-input');
+          const sendBtn = document.getElementById('doc-chat-send');
+          const container = document.getElementById('doc-chat-messages');
+          const question = input.value.trim();
+          if (!question) return;
 
-  // Add User msg
-  const userMsg = document.createElement('div');
-  userMsg.className = 'flex justify-end gap-3 ai-msg-animate';
-  userMsg.innerHTML = `<div class="rounded-2xl rounded-tr-sm bg-indigo-600 px-4 py-3 text-sm text-white shadow-sm max-w-[85%]">${escapeHtml(question)}</div>`;
-  container.appendChild(userMsg);
-  container.scrollTop = container.scrollHeight;
+          // Add User msg
+          const userMsg = document.createElement('div');
+          userMsg.className = 'flex justify-end gap-3 ai-msg-animate';
+          userMsg.innerHTML = `<div class="rounded-2xl rounded-tr-sm bg-indigo-600 px-4 py-3 text-sm text-white shadow-sm max-w-[85%]">${escapeHtml(question)}</div>`;
+          container.appendChild(userMsg);
+          container.scrollTop = container.scrollHeight;
 
-  input.value = '';
-  input.disabled = true;
-  sendBtn.disabled = true;
+          input.value = '';
+          input.disabled = true;
+          sendBtn.disabled = true;
 
-  // Add thinking dot
-  const thinkingId = 'doc-thinking-' + Date.now();
-  const thinkingWait = document.createElement('div');
-  thinkingWait.id = thinkingId;
-  thinkingWait.className = 'flex gap-3 ai-msg-animate';
-  thinkingWait.innerHTML = `
+          // Add thinking dot
+          const thinkingId = 'doc-thinking-' + Date.now();
+          const thinkingWait = document.createElement('div');
+          thinkingWait.id = thinkingId;
+          thinkingWait.className = 'flex gap-3 ai-msg-animate';
+          thinkingWait.innerHTML = `
     <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-100">
       <span class="text-sm">🤖</span>
     </div>
@@ -304,47 +355,169 @@ async function sendDocChat(e) {
       <span class="h-2 w-2 rounded-full bg-indigo-400 animate-bounce" style="animation-delay:150ms"></span>
       <span class="h-2 w-2 rounded-full bg-indigo-400 animate-bounce" style="animation-delay:300ms"></span>
     </div>`;
-  container.appendChild(thinkingWait);
-  container.scrollTop = container.scrollHeight;
+          container.appendChild(thinkingWait);
+          container.scrollTop = container.scrollHeight;
 
-  try {
-    const docId = <%= doc.id %>;
-    const resp = await fetch('/api/ai/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question, docId })
-    });
-    const data = await resp.json();
-    document.getElementById(thinkingId).remove();
+          try {
+            const docId = <%= doc.id %>;
+            const resp = await fetch('/api/ai/chat', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ question, docId })
+            });
+            const data = await resp.json();
+            document.getElementById(thinkingId).remove();
 
-    const aiMsg = document.createElement('div');
-    aiMsg.className = 'flex gap-3 ai-msg-animate';
-    
-    if (!resp.ok) {
-      aiMsg.innerHTML = `<div class="rounded-2xl rounded-tl-sm bg-red-50 border border-red-100 px-4 py-3 text-sm text-red-600 max-w-[85%]">⚠️ Lỗi: ${escapeHtml(data.error || 'Không xác định')}</div>`;
-    } else {
-      const formatted = escapeHtml(data.answer).replace(/\n/g, '<br>');
-      aiMsg.innerHTML = `
+            const aiMsg = document.createElement('div');
+            aiMsg.className = 'flex gap-3 ai-msg-animate';
+
+            if (!resp.ok) {
+              aiMsg.innerHTML = `<div class="rounded-2xl rounded-tl-sm bg-red-50 border border-red-100 px-4 py-3 text-sm text-red-600 max-w-[85%]">⚠️ Lỗi: ${escapeHtml(data.error || 'Không xác định')}</div>`;
+            } else {
+              const formatted = escapeHtml(data.answer).replace(/\n/g, '<br>');
+              // Clean answer cho việc đọc TTS
+              const cleanAnswer = data.answer.replace(/"/g, '&quot;');
+              const btnId = 'btn-tts-' + Date.now();
+              aiMsg.innerHTML = `
       <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-100">
         <span class="text-sm">🤖</span>
       </div>
-      <div class="rounded-2xl rounded-tl-sm bg-white border border-slate-200 shadow-sm px-4 py-3 text-sm text-slate-700 max-w-[85%] leading-relaxed">${formatted}</div>`;
-    }
-    
-    container.appendChild(aiMsg);
-  } catch (err) {
-    document.getElementById(thinkingId)?.remove();
-    const errMsg = document.createElement('div');
-    errMsg.className = 'flex gap-3 ai-msg-animate';
-    errMsg.innerHTML = `<div class="rounded-2xl rounded-tl-sm bg-red-50 border border-red-100 px-4 py-3 text-sm text-red-600 max-w-[85%]">⚠️ Lỗi mạng: ${escapeHtml(err.message)}</div>`;
-    container.appendChild(errMsg);
-  }
+      <div class="rounded-2xl rounded-tl-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm px-4 py-3 text-sm text-slate-700 dark:text-slate-200 max-w-[85%] leading-relaxed relative">
+        <div class="mb-2">${formatted}</div>
+        <button id="${btnId}" data-text="${cleanAnswer}" onclick="speakText(this.dataset.text, this.id)" class="inline-flex items-center gap-1 text-xs font-medium text-brand-600 bg-brand-50 hover:bg-brand-100 dark:bg-slate-700 dark:text-brand-400 dark:hover:bg-slate-600 px-2 py-1 rounded transition-colors" title="Đọc toàn bộ câu trả lời">
+          <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.5-.62-1.5-1.5v-4.5c0-.88.62-1.5 1.5-1.5h2.24Z"/></svg>
+          Nghe đáp án
+        </button>
+      </div>`;
+            }
 
-  container.scrollTop = container.scrollHeight;
-  input.disabled = false;
-  sendBtn.disabled = false;
-  input.focus();
-}
-</script>
+            container.appendChild(aiMsg);
+          } catch (err) {
+            document.getElementById(thinkingId)?.remove();
+            const errMsg = document.createElement('div');
+            errMsg.className = 'flex gap-3 ai-msg-animate';
+            errMsg.innerHTML = `<div class="rounded-2xl rounded-tl-sm bg-red-50 border border-red-100 px-4 py-3 text-sm text-red-600 max-w-[85%]">⚠️ Lỗi mạng: ${escapeHtml(err.message)}</div>`;
+            container.appendChild(errMsg);
+          }
 
-<%- include('../partials/footer') %>
+          container.scrollTop = container.scrollHeight;
+          input.disabled = false;
+          sendBtn.disabled = false;
+          input.focus();
+        }
+
+        // Quản lý phiên để hủy bỏ các lệnh đọc trùng lặp
+        window.__ttsSessionId = null;
+
+        // --- Hàm Cốt lõi xử lý Đọc Âm Thanh (Backend TTS Liên mạch kèm Tải) ---
+        window.speakText = async function (text, btnId = null) {
+          if (!text || text.trim() === '') return;
+
+          const currentSession = Date.now();
+          window.__ttsSessionId = currentSession;
+
+          if (window.__currentCloudAudio) {
+            window.__currentCloudAudio.pause();
+            window.__currentCloudAudio = null;
+          }
+          window.__ttsQueue = [];
+
+          let btnEl = null;
+          let originalHtml = '';
+          if (btnId) {
+            btnEl = document.getElementById(btnId);
+            if (btnEl) {
+                originalHtml = btnEl.innerHTML;
+                btnEl.innerHTML = `<span class="inline-flex gap-1 items-center"><span class="h-2 w-2 rounded-full bg-brand-500 animate-bounce" style="animation-delay:0ms"></span><span class="h-2 w-2 rounded-full bg-brand-500 animate-bounce" style="animation-delay:150ms"></span><span class="h-2 w-2 rounded-full bg-brand-500 animate-bounce" style="animation-delay:300ms"></span> Đang nạp...</span>`;
+            }
+          }
+          
+          if (ttsMainBtn && btnId !== 'main') {
+              // Hide the global reading button if using internal bubbles
+          } else if (btnId === 'main') {
+              originalHtml = ttsMainBtn.innerHTML;
+              ttsMainBtn.innerHTML = `Đang nạp...`;
+          }
+
+          console.log(`Đang tải toàn bộ dữ liệu âm thanh từ Backend...`);
+
+          try {
+            const resp = await fetch('/api/ai/tts', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ text })
+            });
+
+            if (!resp.ok) throw new Error("Lỗi Server TTS");
+            
+            const data = await resp.json();
+            
+            // Nếu người dùng đã spam click khác trong lúc tải xong, hủy luồng này
+            if (window.__ttsSessionId !== currentSession) return;
+            
+            // Xóa hiệu ứng tải
+            if (btnEl) btnEl.innerHTML = originalHtml;
+            if (btnId === 'main') ttsMainBtn.innerHTML = originalHtml;
+
+            if (data.chunks && data.chunks.length > 0) {
+              window.__ttsQueue = data.chunks;
+              
+              function playNextHandoff() {
+                  if (window.__ttsSessionId !== currentSession) return;
+                  if (window.__ttsQueue.length === 0) {
+                      // Đã phát xong hết
+                      if (btnEl) btnEl.classList.remove('opacity-50');
+                      return;
+                  }
+                  if (btnEl) btnEl.classList.add('opacity-50'); // Làm mờ nhẹ khi đang phát
+
+                  const base64Audio = window.__ttsQueue.shift();
+                  const audio = new Audio("data:audio/mp3;base64," + base64Audio);
+                  window.__currentCloudAudio = audio;
+                  // Ngay khi file audio này phát xong thì nối liền file sau luôn không có độ trễ logic server nữa
+                  audio.onended = playNextHandoff;
+                  audio.onerror = () => { console.log('Chunk error'); playNextHandoff(); };
+                  audio.play().catch(e => console.log('Autoplay blocked:', e));
+              }
+              
+              playNextHandoff();
+            }
+          } catch (err) {
+            console.error(err);
+            if (btnEl) btnEl.innerHTML = originalHtml;
+            if (btnId === 'main') ttsMainBtn.innerHTML = originalHtml;
+          }
+        }
+
+        // --- Text-to-Speech (Global Page Selection) ---
+        const ttsMainBtn = document.createElement('button');
+        ttsMainBtn.innerHTML = '<span class="text-sm">🔊</span> Đọc';
+        ttsMainBtn.className = 'fixed z-[100] bg-brand-600 hover:bg-brand-500 text-white rounded-md px-2.5 py-1 text-xs font-semibold shadow-xl transition-opacity flex items-center gap-1.5 hidden';
+        document.body.appendChild(ttsMainBtn);
+
+        let pageSelectedText = '';
+        document.addEventListener('selectionchange', () => {
+          const selection = window.getSelection();
+          pageSelectedText = selection.toString().trim();
+          if (pageSelectedText.length > 0) {
+            try {
+              const range = selection.getRangeAt(0);
+              const rect = range.getBoundingClientRect();
+              ttsMainBtn.style.top = (rect.top - 36) + 'px';
+              ttsMainBtn.style.left = (rect.left + (rect.width / 2) - 30) + 'px';
+              ttsMainBtn.classList.remove('hidden');
+            } catch(e) {}
+          } else {
+            ttsMainBtn.classList.add('hidden');
+          }
+        });
+
+        ttsMainBtn.addEventListener('mousedown', (e) => {
+          e.preventDefault(); // Giữ highlight
+          if (pageSelectedText) {
+            window.speakText(pageSelectedText, 'main');
+          }
+        });
+      </script>
+
+      <%- include('../partials/footer') %>

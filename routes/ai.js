@@ -188,4 +188,31 @@ router.post('/chat', async (req, res) => {
   }
 });
 
+/* ───── POST /api/ai/tts ───── */
+const googleTTS = require('google-tts-api');
+
+router.post('/tts', async (req, res) => {
+  try {
+    const { text } = req.body;
+    if (!text || !text.trim()) {
+      return res.status(400).json({ error: 'Missing text' });
+    }
+    
+    // Thu thập tất cả các chunk âm thanh một lúc để trả về nguyên cục, bảo đảm đọc liền mạch không vấp
+    const results = await googleTTS.getAllAudioBase64(text, {
+      lang: 'vi',
+      slow: false,
+      host: 'https://translate.google.com',
+      splitPunct: ',.?:',
+    });
+    
+    const audioData = results.map(r => r.base64);
+    
+    return res.json({ chunks: audioData });
+  } catch (err) {
+    console.error('TTS error:', err.message);
+    return res.status(500).json({ error: 'Không thể tổng hợp giọng nói từ server.' });
+  }
+});
+
 module.exports = router;
