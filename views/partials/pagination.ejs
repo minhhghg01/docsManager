@@ -6,7 +6,7 @@
       <div class="flex items-center gap-1 text-sm">
         <% if (pg.page> 1) { %>
           <a href="<%= pgUrl(pg.page - 1) %>"
-            class="rounded border border-slate-300 px-2 py-0.5 transition-all hover:bg-slate-100">←</a>
+            class="pagination-prev rounded border border-slate-300 px-2 py-0.5 transition-all hover:bg-slate-100">←</a>
           <% } else { %>
             <span class="rounded border border-slate-200 px-2 py-0.5 text-slate-300">←</span>
             <% } %>
@@ -37,10 +37,9 @@
                                         <% } %>
                                           <% if (pg.page < pg.totalPages) { %>
                                             <a href="<%= pgUrl(pg.page + 1) %>"
-                                              class="rounded border border-slate-300 px-2 py-0.5 transition-all hover:bg-slate-100">→</a>
+                                              class="pagination-next rounded border border-slate-300 px-2 py-0.5 transition-all hover:bg-slate-100">→</a>
                                             <% } else { %>
-                                              <span
-                                                class="rounded border border-slate-200 px-2 py-0.5 text-slate-300">→</span>
+                                              <span class="rounded border border-slate-200 px-2 py-0.5 text-slate-300">→</span>
                                               <% } %>
       </div>
       <% } %>

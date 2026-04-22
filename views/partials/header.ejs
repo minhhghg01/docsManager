@@ -1,10 +1,13 @@
 <!DOCTYPE html>
 <html lang="vi">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title><%= typeof title !== 'undefined' ? title + ' · ' : '' %>Quản lý Tài liệu</title>
-  
+  <title>
+    <%= typeof title !=='undefined' ? title + ' · ' : '' %>Quản lý Tài liệu
+  </title>
+
   <!-- Chặn FOIT (Flash of Inaccurate Theme) -->
   <script>
     if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
@@ -28,87 +31,163 @@
     };
   </script>
   <style>
-    .transition-all{transition-property:all;transition-timing-function:cubic-bezier(.4,0,.2,1);transition-duration:200ms}
-    .hover-lift:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,.08)}
-    .hover-scale:hover{transform:scale(1.02)}
+    .transition-all {
+      transition-property: all;
+      transition-timing-function: cubic-bezier(.4, 0, .2, 1);
+      transition-duration: 200ms
+    }
+
+    .hover-lift:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, .08)
+    }
+
+    .hover-scale:hover {
+      transform: scale(1.02)
+    }
+
     /* CSS cho List View */
-    #docsContainer.view-list { display: flex; flex-direction: column; gap: 1rem; }
-    #docsContainer.view-list .card-item { flex-direction: row !important; height: auto !important; }
-    #docsContainer.view-list .card-banner { height: 120px !important; width: 140px !important; flex-shrink: 0; border-right: 1px solid #e2e8f0; }
-    .dark #docsContainer.view-list .card-banner { border-color: #334155; }
-    #docsContainer.view-list .card-info { padding: 1rem 1.5rem !important; justify-content: center !important;}
+    #docsContainer.view-list {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    #docsContainer.view-list .card-item {
+      flex-direction: row !important;
+      height: auto !important;
+    }
+
+    #docsContainer.view-list .card-banner {
+      height: 120px !important;
+      width: 140px !important;
+      flex-shrink: 0;
+      border-right: 1px solid #e2e8f0;
+    }
+
+    .dark #docsContainer.view-list .card-banner {
+      border-color: #334155;
+    }
+
+    #docsContainer.view-list .card-info {
+      padding: 1rem 1.5rem !important;
+      justify-content: center !important;
+    }
   </style>
   <link rel="stylesheet" href="/css/styles.css" />
 </head>
-<body class="flex min-h-screen flex-col bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 antialiased transition-colors duration-300">
-  <header class="border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm transition-colors duration-300 sticky top-0 z-50">
-    <div class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-4">
-      <a href="/docs" class="whitespace-nowrap text-lg font-semibold text-brand-700 dark:text-brand-500 transition-all hover:text-brand-900 dark:hover:text-brand-400">Quản lý Tài liệu</a>
-      <nav class="flex flex-wrap items-center gap-3 text-sm">
-        <a href="/docs" class="text-slate-600 dark:text-slate-300 transition-all hover:text-brand-600 dark:hover:text-brand-400">Tài liệu</a>
-        <% if (user && user.role === 'admin') { %>
-          <a href="/admin/dashboard" class="text-slate-600 dark:text-slate-300 transition-all hover:text-brand-600 dark:hover:text-brand-400">Quản trị</a>
-        <% } %>
-        
-        <!-- Toggle Dark Mode -->
-        <button id="theme-toggle" type="button" class="text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg text-sm p-2 transition-colors ml-1" title="Đổi giao diện Tối/Sáng">
-          <svg id="theme-toggle-dark-icon" class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path></svg>
-          <svg id="theme-toggle-light-icon" class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" fill-rule="evenodd" clip-rule="evenodd"></path></svg>
-        </button>
 
-        <% if (user) { %>
-          <span class="text-slate-400 dark:text-slate-600 hidden sm:inline">|</span>
-          <span class="text-slate-500 dark:text-slate-400 hidden sm:inline"><%= user.username %><% if (user.khoa_name) { %> · <%= user.khoa_name %><% } %></span>
-          <form action="/logout" method="post" class="inline">
-            <button type="submit" class="rounded-md bg-slate-200 dark:bg-slate-700 px-3 py-1.5 font-medium text-slate-800 dark:text-slate-200 transition-all hover:bg-red-100 dark:hover:bg-red-900/50 hover:text-red-700 dark:hover:text-red-400">Đăng xuất</button>
-          </form>
-        <% } else { %>
-          <a href="/login" class="rounded-md bg-brand-600 px-3 py-1.5 font-medium text-white transition-all hover:bg-brand-700 hover:shadow-md">Đăng nhập</a>
-        <% } %>
+<body
+  class="flex min-h-screen flex-col bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 antialiased transition-colors duration-300">
+  <header id="main-header"
+    class="border-b border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur shadow-sm transition-transform duration-300 sticky top-0 z-50">
+    <div class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-4">
+      <a href="/docs"
+        class="whitespace-nowrap text-lg font-semibold text-brand-700 dark:text-brand-500 transition-all hover:text-brand-900 dark:hover:text-brand-400">Quản
+        lý Tài liệu</a>
+      <nav class="flex flex-wrap items-center gap-3 text-sm">
+        <a href="/docs"
+          class="text-slate-600 dark:text-slate-300 transition-all hover:text-brand-600 dark:hover:text-brand-400">Tài
+          liệu</a>
+        <% if (user && user.role==='admin' ) { %>
+          <a href="/admin/dashboard"
+            class="text-slate-600 dark:text-slate-300 transition-all hover:text-brand-600 dark:hover:text-brand-400">Quản
+            trị</a>
+          <% } %>
+
+            <!-- Toggle Dark Mode -->
+            <button id="theme-toggle" type="button"
+              class="text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg text-sm p-2 transition-colors ml-1"
+              title="Đổi giao diện Tối/Sáng">
+              <svg id="theme-toggle-dark-icon" class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path>
+              </svg>
+              <svg id="theme-toggle-light-icon" class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <path
+                  d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z"
+                  fill-rule="evenodd" clip-rule="evenodd"></path>
+              </svg>
+            </button>
+
+            <% if (user) { %>
+              <span class="text-slate-400 dark:text-slate-600 hidden sm:inline">|</span>
+              <span class="text-slate-500 dark:text-slate-400 hidden sm:inline">
+                <%= user.username %>
+                  <% if (user.khoa_name) { %> · <%= user.khoa_name %>
+                      <% } %>
+              </span>
+              <form action="/logout" method="post" class="inline">
+                <button type="submit"
+                  class="rounded-md bg-slate-200 dark:bg-slate-700 px-3 py-1.5 font-medium text-slate-800 dark:text-slate-200 transition-all hover:bg-red-100 dark:hover:bg-red-900/50 hover:text-red-700 dark:hover:text-red-400">Đăng
+                  xuất</button>
+              </form>
+              <% } else { %>
+                <a href="/login"
+                  class="rounded-md bg-brand-600 px-3 py-1.5 font-medium text-white transition-all hover:bg-brand-700 hover:shadow-md">Đăng
+                  nhập</a>
+                <% } %>
       </nav>
     </div>
   </header>
   <main class="mx-auto w-full max-w-7xl flex-1 px-4 py-8 relative">
-  <script>
-    var themeToggleDarkIcon = document.getElementById('theme-toggle-dark-icon');
-    var themeToggleLightIcon = document.getElementById('theme-toggle-light-icon');
+    <script>
+      var themeToggleDarkIcon = document.getElementById('theme-toggle-dark-icon');
+      var themeToggleLightIcon = document.getElementById('theme-toggle-light-icon');
 
-    // Chỉnh icon ban đầu cho khớp với giao diện
-    if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+      // Chỉnh icon ban đầu cho khớp với giao diện
+      if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
         themeToggleLightIcon.classList.remove('hidden');
-    } else {
+      } else {
         themeToggleDarkIcon.classList.remove('hidden');
-    }
+      }
 
-    var themeToggleBtn = document.getElementById('theme-toggle');
-    themeToggleBtn.addEventListener('click', function() {
+      var themeToggleBtn = document.getElementById('theme-toggle');
+      themeToggleBtn.addEventListener('click', function () {
         themeToggleDarkIcon.classList.toggle('hidden');
         themeToggleLightIcon.classList.toggle('hidden');
 
         if (document.documentElement.classList.contains('dark')) {
-            document.documentElement.classList.remove('dark');
-            localStorage.setItem('theme', 'light');
+          document.documentElement.classList.remove('dark');
+          localStorage.setItem('theme', 'light');
         } else {
-            document.documentElement.classList.add('dark');
-            localStorage.setItem('theme', 'dark');
+          document.documentElement.classList.add('dark');
+          localStorage.setItem('theme', 'dark');
         }
-    });
+      });
 
-    // Hàm tô màu tự động cho Tags dựa trên mã ASCII -> màu đẹp
-    // Dùng biến toàn cục để list.ejs có thể xài
-    window.getColorForTag = function(tagStr) {
-      const colors = [
-        'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200', 
-        'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200', 
-        'bg-violet-100 text-violet-800 dark:bg-violet-900 dark:text-violet-200', 
-        'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200', 
-        'bg-rose-100 text-rose-800 dark:bg-rose-900 dark:text-rose-200', 
-        'bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200'
-      ];
-      let hash = 0;
-      for (let i = 0; i < tagStr.length; i++) {
-        hash = tagStr.charCodeAt(i) + ((hash << 5) - hash);
+      // Hàm tô màu tự động cho Tags dựa trên mã ASCII -> màu đẹp
+      // Dùng biến toàn cục để list.ejs có thể xài
+      window.getColorForTag = function (tagStr) {
+        const colors = [
+          'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+          'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200',
+          'bg-violet-100 text-violet-800 dark:bg-violet-900 dark:text-violet-200',
+          'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200',
+          'bg-rose-100 text-rose-800 dark:bg-rose-900 dark:text-rose-200',
+          'bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200'
+        ];
+        let hash = 0;
+        for (let i = 0; i < tagStr.length; i++) {
+          hash = tagStr.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        return colors[Math.abs(hash) % colors.length];
       }
-      return colors[Math.abs(hash) % colors.length];
-    }
-  </script>
+
+      // --- Smart Scroll Header (Ẩn khi cuộn xuống, Hiện khi cuộn lên) ---
+      let lastScrollY = window.scrollY;
+      const headerEl = document.getElementById('main-header');
+      window.addEventListener('scroll', () => {
+        const currentScrollY = window.scrollY;
+        if (currentScrollY > 380 && currentScrollY > lastScrollY) {
+          // Scrolling down -> hide header
+          headerEl.classList.add('-translate-y-full');
+          // Đồng thời gửi event để ẩn các thành phần sticky khác
+          window.dispatchEvent(new CustomEvent('smartscroll', { detail: { dir: 'down' } }));
+        } else if (currentScrollY < lastScrollY || currentScrollY <= 380) {
+          // Scrolling up -> show header
+          headerEl.classList.remove('-translate-y-full');
+          window.dispatchEvent(new CustomEvent('smartscroll', { detail: { dir: 'up' } }));
+        }
+        lastScrollY = currentScrollY;
+      }, { passive: true });
+    </script>

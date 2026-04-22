@@ -28,7 +28,7 @@ function getTagColor(str) {
 <!-- ===== SIDEBAR (sticky) ===== -->
 <aside class="hidden w-64 shrink-0 lg:block">
   <nav class="sticky top-20 space-y-1 rounded-xl border border-slate-200 dark:border-slate-700/60 bg-white dark:bg-slate-800 p-3 shadow-sm transition-colors duration-300">
-    <h2 class="mb-2 px-2 text-xs font-semibold uppercase tracking-wider text-slate-400">Danh mục</h2>
+    <h2 class="mb-2 px-2 text-xs font-semibold uppercase tracking-wider text-slate-400">Khoa / Phòng</h2>
     <a href="<%= filters.deptId ? '/docs' + (filters.search ? '?q=' + encodeURIComponent(filters.search) : '') : '#' %>"
        class="flex items-center gap-2 justify-between rounded-lg px-3 py-2 text-sm font-medium transition-all <%= !filters.deptId ? 'bg-brand-50 text-brand-700 dark:bg-brand-900/20 dark:text-brand-400' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50' %>">
       <span class="flex items-center gap-2">
@@ -92,7 +92,7 @@ function getTagColor(str) {
 </div>
 
 <!-- Sticky search + tags -->
-<div class="sticky top-16 z-30 -mx-1 bg-slate-50/95 dark:bg-slate-900/95 px-1 pt-2 pb-2 backdrop-blur transition-colors duration-300">
+<div id="sticky-filter" class="sticky z-30 -mx-1 bg-slate-50/95 dark:bg-slate-900/95 px-1 pt-2 pb-2 backdrop-blur transition-transform duration-300 transform">
   <!-- Search bar -->
   <form id="filterForm" method="get" action="/docs" class="rounded-xl border border-slate-200 dark:border-slate-700/60 bg-white dark:bg-slate-800 p-2 shadow-sm transition-colors duration-300">
     <input type="hidden" name="tags" id="tagsInput" value="<%= filters.tags.join(',') %>" />
@@ -123,7 +123,7 @@ function getTagColor(str) {
   </form>
 
   <!-- Tag cloud + pub -->
-  <div class="mt-3 flex flex-wrap gap-2" id="tagCloud">
+  <div class="mt-3 flex flex-wrap gap-2 max-h-32 overflow-y-auto no-scrollbar" id="tagCloud">
     <% if (user) { %>
       <button type="button" data-pub="1" class="pub-btn rounded-full border px-3 py-1 text-xs font-medium transition-all hover:border-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 hover:text-emerald-700 dark:hover:text-emerald-400 <%= filters.pub === '1' ? 'border-emerald-500 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300' %>">Công khai</button>
       <button type="button" data-pub="0" class="pub-btn rounded-full border px-3 py-1 text-xs font-medium transition-all hover:border-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/30 hover:text-amber-700 dark:hover:text-amber-400 <%= filters.pub === '0' ? 'border-amber-500 bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300' %>">Nội bộ</button>
@@ -217,7 +217,7 @@ function getTagColor(str) {
 </div><!-- /flex -->
 
 <!-- Back to top -->
-<button id="backToTop" class="fixed bottom-6 right-6 z-50 hidden rounded-full bg-slate-800 dark:bg-slate-700 p-3 text-white shadow-lg transition-all hover:bg-slate-700 dark:hover:bg-slate-600 hover:-translate-y-1 hover:shadow-xl" title="Lên đầu trang">
+<button id="backToTop" class="fixed bottom-[5.5rem] right-4 sm:right-6 lg:right-8 z-40 hidden rounded-full bg-slate-800 dark:bg-slate-700 p-3 text-white shadow-lg transition-all hover:bg-slate-700 dark:hover:bg-slate-600 hover:-translate-y-1 hover:shadow-xl" title="Lên đầu trang">
   <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5"/></svg>
 </button>
 
@@ -388,6 +388,68 @@ function setViewMode(mode) {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     });
   }
+
+  // --- Đồng bộ vị trí Sticky Filter với Header & Ẩn đi hoàn toàn khi vuốt xuống ---
+  var stickyFilter = document.getElementById('sticky-filter');
+  var mainHeader = document.getElementById('main-header');
+  
+  function updateStickyTop() {
+    if(mainHeader && stickyFilter) {
+      stickyFilter.style.top = mainHeader.offsetHeight + 'px';
+    }
+  }
+  
+  if(stickyFilter) {
+    // Gọi ngay và khi resize
+    updateStickyTop();
+    window.addEventListener('resize', updateStickyTop);
+
+    window.addEventListener('smartscroll', function(e) {
+      if(e.detail.dir === 'down') {
+        // Dịch chuyển lên chính xác bằng [chiều cao của nó + khoảng cách Top] để nó khuất hoàn toàn khỏi mép trên
+        var topVal = parseInt(stickyFilter.style.top || 0);
+        stickyFilter.style.transform = 'translateY(calc(-100% - ' + topVal + 'px))';
+      } else {
+        stickyFilter.style.transform = 'translateY(0)';
+      }
+    });
+  }
+
+  // --- Vuốt trái phải để đổi trang ---
+  var touchstartX = 0;
+  var touchendX = 0;
+  var touchstartY = 0;
+  var touchendY = 0;
+  
+  function checkSwipe() {
+    // Đảm bảo vuốt chủ yếu theo chiều ngang, không phải vuốt màn hình xuống
+    if (Math.abs(touchendX - touchstartX) > 80 && Math.abs(touchendY - touchstartY) < 50) {
+      if (touchendX < touchstartX) { // Vuốt sang trái = Trang tiếp
+        var nextBtn = document.querySelector('.pagination-next');
+        if (nextBtn && nextBtn.href) {
+            document.body.style.opacity = '0.5';
+            window.location.href = nextBtn.href;
+        }
+      } else if (touchendX > touchstartX) { // Vuốt sang phải = Trang trước
+        var prevBtn = document.querySelector('.pagination-prev');
+        if (prevBtn && prevBtn.href) {
+            document.body.style.opacity = '0.5';
+            window.location.href = prevBtn.href;
+        }
+      }
+    }
+  }
+
+  document.addEventListener('touchstart', function(e) {
+    touchstartX = e.changedTouches[0].screenX;
+    touchstartY = e.changedTouches[0].screenY;
+  }, {passive:true});
+
+  document.addEventListener('touchend', function(e) {
+    touchendX = e.changedTouches[0].screenX;
+    touchendY = e.changedTouches[0].screenY;
+    checkSwipe();
+  }, {passive:true});
 
   initPage();
 })();
