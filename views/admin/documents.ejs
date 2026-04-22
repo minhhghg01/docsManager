@@ -4,7 +4,7 @@
     <a href="/admin/dashboard" class="rounded p-1.5 text-brand-600 transition-all hover:bg-brand-50 hover:text-brand-800" title="Quản trị">
       <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"/></svg>
     </a>
-    <h1 class="text-2xl font-bold text-slate-800">Tài liệu</h1>
+    <h1 class="text-2xl font-bold text-slate-800 dark:text-white">Tài liệu</h1>
   </div>
   <div class="flex justify-center">
     <%- include('../partials/pagination', { pg, part: 'nav' }) %>
@@ -17,16 +17,16 @@
     </a>
   </div>
 </div>
-<ul class="mt-8 divide-y divide-slate-200 rounded-xl border border-slate-200 bg-white shadow-sm">
+<ul class="mt-8 divide-y divide-slate-200 dark:divide-slate-700 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm">
   <% if (!docs.length) { %>
-    <li class="px-4 py-8 text-center text-slate-500">Chưa có tài liệu.</li>
+    <li class="px-4 py-8 text-center text-slate-500 dark:text-slate-400">Chưa có tài liệu.</li>
   <% } %>
   <% docs.forEach(function (d) { %>
-    <li class="flex flex-wrap items-center justify-between gap-3 px-4 py-4 cursor-pointer transition-all hover:bg-slate-50" onclick="if(!event.target.closest('a,button,form'))location.href='/docs/<%= d.id %>'">
+    <li class="flex flex-wrap items-center justify-between gap-3 px-4 py-4 cursor-pointer transition-all hover:bg-slate-50 dark:hover:bg-slate-700/50" onclick="if(!event.target.closest('a,button,form'))location.href='/docs/<%= d.id %>'">
       <div>
-        <span class="font-medium text-brand-700"><%= d.id %>. <%= d.title %></span>
-        <p class="text-sm text-slate-500">Nguồn: <%= d.source_label %>
-          <% if (d.is_public) { %><span class="ml-2 text-emerald-700">[công khai]</span><% } %>
+        <span class="font-medium text-brand-700 dark:text-brand-400"><%= d.id %>. <%= d.title %></span>
+        <p class="text-sm text-slate-500 dark:text-slate-400">Nguồn: <%= d.source_label %>
+          <% if (d.is_public) { %><span class="ml-2 text-emerald-700 dark:text-emerald-400">[công khai]</span><% } %>
         </p>
         <% if (d.tags && d.tags.length) { %>
           <div class="mt-1 flex flex-wrap gap-1">

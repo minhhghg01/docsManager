@@ -1,14 +1,41 @@
 <%- include('../partials/header') %>
-
-<div class="flex gap-6">
+<%
+function getTagColor(str) {
+  var colors = [
+    'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300', 
+    'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300', 
+    'bg-violet-100 text-violet-800 dark:bg-violet-900/50 dark:text-violet-300', 
+    'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300', 
+    'bg-rose-100 text-rose-800 dark:bg-rose-900/50 dark:text-rose-300', 
+    'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/50 dark:text-cyan-300'
+  ];
+  var hash = 0;
+  for (var i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  return colors[Math.abs(hash) % colors.length];
+}
+%>
+<style>
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .animate-fade-up {
+    animation: fadeUp 0.5s ease-out forwards;
+    opacity: 0; /* Bắt đầu với tàng hình để tránh loé */
+  }
+</style>
+<div class="flex flex-col lg:flex-row gap-6">
 <!-- ===== SIDEBAR (sticky) ===== -->
-<aside class="hidden w-56 shrink-0 lg:block">
-  <nav class="sticky top-4 space-y-1 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+<aside class="hidden w-64 shrink-0 lg:block">
+  <nav class="sticky top-20 space-y-1 rounded-xl border border-slate-200 dark:border-slate-700/60 bg-white dark:bg-slate-800 p-3 shadow-sm transition-colors duration-300">
     <h2 class="mb-2 px-2 text-xs font-semibold uppercase tracking-wider text-slate-400">Danh mục</h2>
     <a href="<%= filters.deptId ? '/docs' + (filters.search ? '?q=' + encodeURIComponent(filters.search) : '') : '#' %>"
-       class="flex items-center justify-between rounded-lg px-3 py-2 text-sm font-medium transition-all <%= !filters.deptId ? 'bg-brand-50 text-brand-700' : 'text-slate-600 hover:bg-slate-50' %>">
-      Tất cả tài liệu
-      <span class="text-xs opacity-50">(<%= pagination.totalCount %>)</span>
+       class="flex items-center gap-2 justify-between rounded-lg px-3 py-2 text-sm font-medium transition-all <%= !filters.deptId ? 'bg-brand-50 text-brand-700 dark:bg-brand-900/20 dark:text-brand-400' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50' %>">
+      <span class="flex items-center gap-2">
+        <svg class="w-5 h-5 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+        Tất cả dữ liệu
+      </span>
+      <span class="text-xs opacity-50"><%= pagination.totalCount %></span>
     </a>
     <% departments.forEach(function (d) { %>
       <%
@@ -19,9 +46,12 @@
         var isActive = String(filters.deptId) === String(d.id);
       %>
       <a href="<%= dUrl %>"
-         class="flex items-center justify-between rounded-lg px-3 py-2 text-sm transition-all <%= isActive ? 'bg-brand-50 font-medium text-brand-700' : 'text-slate-600 hover:bg-slate-50' %>">
-        <%= d.name %>
-        <% if (deptCounts[d.id]) { %><span class="text-xs opacity-50">(<%= deptCounts[d.id] %>)</span><% } %>
+         class="flex items-center gap-2 justify-between rounded-lg px-3 py-2 text-sm transition-all <%= isActive ? 'bg-brand-50 font-medium text-brand-700 dark:bg-brand-900/20 dark:text-brand-400' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50' %>">
+        <span class="flex items-center gap-2 truncate">
+          <svg class="w-5 h-5 text-amber-500/80" fill="currentColor" viewBox="0 0 20 20"><path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"></path></svg>
+          <span class="truncate"><%= d.name %></span>
+        </span>
+        <% if (deptCounts[d.id]) { %><span class="text-xs opacity-50"><%= deptCounts[d.id] %></span><% } %>
       </a>
     <% }); %>
   </nav>
@@ -31,102 +61,155 @@
 <div class="min-w-0 flex-1">
 
 <!-- Title row -->
-<div class="grid grid-cols-[auto_1fr_auto] items-center gap-3">
-  <h1 class="text-2xl font-bold text-slate-800">Tất cả tài liệu</h1>
+<div class="grid grid-cols-1 md:grid-cols-[auto_1fr_auto] items-center gap-4 mb-4">
+  <div class="flex items-center gap-3">
+    <h1 class="text-2xl font-bold text-slate-800 dark:text-white">Tài liệu</h1>
+    
+    <!-- View Mode Toggles -->
+    <div class="hidden sm:flex border border-slate-200 dark:border-slate-700 p-0.5 rounded-lg bg-white dark:bg-slate-800">
+      <button id="btn-grid-view" onclick="setViewMode('grid')" class="p-1.5 rounded-md bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-200 transition-colors" title="Dạng thẻ lưới">
+        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
+      </button>
+      <button id="btn-list-view" onclick="setViewMode('list')" class="p-1.5 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors" title="Dạng danh sách">
+        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"></path></svg>
+      </button>
+    </div>
+  </div>
+
   <div class="flex justify-center">
     <%- include('../partials/pagination', { pg: pagination, part: 'nav' }) %>
   </div>
-  <div class="flex items-center gap-3">
+
+  <div class="flex items-center gap-3 ml-auto">
     <%- include('../partials/pagination', { pg: pagination, part: 'info' }) %>
     <% if (isAdmin) { %>
       <a href="/admin/documents/new" class="inline-flex items-center gap-1.5 rounded-md bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition-all hover:bg-brand-700 hover:shadow-md">
         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
-        Thêm tài liệu
+        Thêm
       </a>
     <% } %>
   </div>
 </div>
 
 <!-- Sticky search + tags -->
-<div class="sticky top-0 z-10 -mx-1 bg-slate-50/95 px-1 pt-3 pb-2 backdrop-blur">
+<div class="sticky top-16 z-30 -mx-1 bg-slate-50/95 dark:bg-slate-900/95 px-1 pt-2 pb-2 backdrop-blur transition-colors duration-300">
   <!-- Search bar -->
-  <form id="filterForm" method="get" action="/docs" class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+  <form id="filterForm" method="get" action="/docs" class="rounded-xl border border-slate-200 dark:border-slate-700/60 bg-white dark:bg-slate-800 p-2 shadow-sm transition-colors duration-300">
     <input type="hidden" name="tags" id="tagsInput" value="<%= filters.tags.join(',') %>" />
     <input type="hidden" name="pub" id="pubInput" value="<%= filters.pub %>" />
     <input type="hidden" name="dept" id="deptInput" value="<%= filters.deptId %>" />
     <input type="hidden" name="page" value="1" />
-    <div class="flex gap-3">
-      <div class="flex-1">
-        <input type="text" name="q" id="searchInput" value="<%= filters.search %>" placeholder="Tìm theo tiêu đề hoặc nguồn..." autocomplete="off" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm transition-all focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500" />
+    
+    <div class="flex gap-2">
+      <div class="relative flex-1">
+        <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+          <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+        </div>
+        <input type="text" name="q" id="searchInput" value="<%= filters.search %>" placeholder="Tìm theo tiêu đề hoặc cơ quan xuất bản..." autocomplete="off" class="w-full rounded-md border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900/50 dark:text-slate-100 pl-10 px-3 py-2.5 text-sm transition-all focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500" />
       </div>
+      
       <!-- Mobile dept select -->
-      <select id="deptSelectMobile" class="rounded-md border border-slate-300 px-3 py-2 text-sm transition-all focus:border-brand-500 focus:ring-1 focus:ring-brand-500 lg:hidden">
-        <option value="">Tất cả khoa/phòng</option>
+      <select id="deptSelectMobile" class="rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 dark:text-slate-200 px-3 py-2 text-sm lg:hidden transition-colors">
+        <option value="">Tất cả danh mục</option>
         <% departments.forEach(function (d) { %>
           <option value="<%= d.id %>" <%= String(filters.deptId) === String(d.id) ? 'selected' : '' %>><%= d.name %></option>
         <% }); %>
       </select>
+      
       <% if (filters.search || filters.tags.length || filters.deptId || filters.pub) { %>
-        <a href="/docs" class="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-500 transition-all hover:bg-slate-100">Xóa lọc</a>
+        <a href="/docs" class="inline-flex items-center rounded-md px-3 py-2 text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition">Xóa lọc</a>
       <% } %>
     </div>
   </form>
 
   <!-- Tag cloud + pub -->
-  <div class="mt-2 flex flex-wrap gap-2" id="tagCloud">
+  <div class="mt-3 flex flex-wrap gap-2" id="tagCloud">
     <% if (user) { %>
-      <button type="button" data-pub="1" class="pub-btn rounded-full border px-3 py-1 text-xs font-medium transition-all hover:border-emerald-400 hover:bg-emerald-50 hover:text-emerald-700 <%= filters.pub === '1' ? 'border-emerald-500 bg-emerald-100 text-emerald-700' : 'border-slate-200 bg-white text-slate-600' %>">Công khai</button>
-      <button type="button" data-pub="0" class="pub-btn rounded-full border px-3 py-1 text-xs font-medium transition-all hover:border-amber-400 hover:bg-amber-50 hover:text-amber-700 <%= filters.pub === '0' ? 'border-amber-500 bg-amber-100 text-amber-700' : 'border-slate-200 bg-white text-slate-600' %>">Nội bộ</button>
-      <% if (allTags.length) { %><span class="self-center text-slate-300">|</span><% } %>
+      <button type="button" data-pub="1" class="pub-btn rounded-full border px-3 py-1 text-xs font-medium transition-all hover:border-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 hover:text-emerald-700 dark:hover:text-emerald-400 <%= filters.pub === '1' ? 'border-emerald-500 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300' %>">Công khai</button>
+      <button type="button" data-pub="0" class="pub-btn rounded-full border px-3 py-1 text-xs font-medium transition-all hover:border-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/30 hover:text-amber-700 dark:hover:text-amber-400 <%= filters.pub === '0' ? 'border-amber-500 bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300' %>">Nội bộ</button>
+      <% if (allTags.length) { %><span class="self-center text-slate-300 dark:text-slate-600">|</span><% } %>
     <% } %>
     <% allTags.forEach(function (t) { %>
       <% var isSelected = filters.tags.indexOf(t) !== -1; %>
-      <button type="button" data-tag="<%= t %>" class="tag-btn rounded-full border px-3 py-1 text-xs font-medium transition-all hover:border-brand-400 hover:bg-brand-50 hover:text-brand-700 <%= isSelected ? 'border-brand-500 bg-brand-100 text-brand-700' : 'border-slate-200 bg-white text-slate-600' %>">
+      <button type="button" data-tag="<%= t %>" class="tag-btn rounded-full border px-3 py-1 text-xs font-medium transition-all hover:border-brand-400 hover:bg-brand-50 hover:text-brand-700 dark:hover:bg-brand-900/30 dark:hover:text-brand-300 <%= isSelected ? 'border-brand-500 bg-brand-100 text-brand-700 dark:bg-brand-900/50 dark:text-brand-300' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300' %>">
         <%= t %> <span class="opacity-40">(<%= tagCounts[t] || 0 %>)</span>
       </button>
     <% }); %>
   </div>
 </div>
 
-<!-- Cards grid -->
-<div class="mt-4 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-  <% if (!docs.length) { %>
-    <div class="col-span-full rounded-xl border border-slate-200 bg-white px-6 py-12 text-center text-slate-500">Không có tài liệu phù hợp.</div>
+<!-- Template Skeleton Loader -->
+<template id="skeleton-template">
+  <% for(let i=0; i<6; i++) { %>
+  <div class="card-item group flex flex-col overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700/60 bg-white dark:bg-slate-800 shadow-sm animate-pulse">
+    <div class="relative h-40 card-banner w-full bg-slate-200 dark:bg-slate-700"></div>
+    <div class="flex flex-1 flex-col p-4 w-full card-info">
+      <div class="h-3 bg-slate-200 dark:bg-slate-700 rounded w-1/4 mb-3"></div>
+      <div class="h-4 bg-slate-200 dark:bg-slate-700 rounded w-3/4 mb-2"></div>
+      <div class="h-4 bg-slate-200 dark:bg-slate-700 rounded w-1/2 mb-4"></div>
+      <div class="mt-auto pt-3 flex gap-2">
+        <div class="h-5 bg-slate-200 dark:bg-slate-700 rounded-full w-12"></div>
+        <div class="h-5 bg-slate-200 dark:bg-slate-700 rounded-full w-16"></div>
+      </div>
+    </div>
+  </div>
   <% } %>
-  <% docs.forEach(function (d) { %>
-    <a href="/docs/<%= d.id %>" class="group flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
-      <!-- Banner -->
-      <div class="relative h-40 w-full overflow-hidden bg-slate-100">
+</template>
+
+<!-- Cards grid -->
+<div id="docsContainer" class="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 transition-all duration-300 pb-20">
+  <% if (!docs.length) { %>
+    <div class="col-span-full rounded-xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 flex flex-col items-center justify-center py-20 text-center">
+      <svg class="w-16 h-16 text-slate-300 dark:text-slate-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 13h6M9 17h6m-7-8h8a2 2 0 012 2v10a2 2 0 01-2 2H8a2 2 0 01-2-2V9a2 2 0 012-2zM8 5a2 2 0 012-2h4a2 2 0 012 2v2H8V5z"></path></svg>
+      <span class="text-slate-500 dark:text-slate-400 font-medium">Không tìm thấy tài liệu phù hợp.</span>
+    </div>
+  <% } %>
+  <% docs.forEach(function (d, i) { %>
+    <div onclick="window.location='/docs/<%= d.id %>'" style="animation-delay: <%= i * 50 %>ms;" class="animate-fade-up card-item cursor-pointer group flex flex-col overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700/60 bg-white dark:bg-slate-800 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md hover:border-brand-300 dark:hover:border-brand-700">
+      
+      <!-- Banner with Quick Actions Overlay -->
+      <div class="card-banner relative h-40 w-full overflow-hidden bg-slate-100 dark:bg-slate-900/50 border-b border-transparent">
         <% if (d.banner_filename) { %>
-          <img src="/uploads/<%= d.banner_filename %>" alt="" loading="lazy" class="h-full w-full object-contain object-center bg-white" />
+          <img src="/uploads/<%= d.banner_filename %>" alt="" loading="lazy" class="h-full w-full object-contain object-center bg-white dark:bg-slate-800 p-2" />
         <% } else { %>
           <%- include('../partials/file-icon', { fname: d.original_filename }) %>
         <% } %>
         <% if (d.is_public) { %>
-          <span class="absolute top-2 right-2 rounded bg-emerald-500/90 px-2 py-0.5 text-xs font-medium text-white">Công khai</span>
+          <span class="absolute top-2 left-2 rounded bg-emerald-500/90 dark:bg-emerald-600/90 px-2 py-0.5 text-[10px] font-bold text-white uppercase tracking-wider shadow-sm z-20">Công khai</span>
         <% } %>
+
+        <!-- Quick Actions Overlay -->
+        <div class="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-2 transition-opacity duration-200 z-10 hidden md:flex backdrop-blur-sm">
+          <button type="button" onclick="event.stopPropagation(); window.location='/docs/<%= d.id %>'" class="px-3 py-1.5 bg-white text-slate-800 text-xs font-semibold rounded hover:bg-slate-100 shadow transition-transform hover:scale-105">Xem</button>
+          <button type="button" onclick="event.stopPropagation(); window.location='/docs/<%= d.id %>/download'" class="px-3 py-1.5 bg-brand-600 text-white text-xs font-semibold rounded hover:bg-brand-500 shadow transition-transform hover:scale-105 flex items-center gap-1">Tải xuống</button>
+        </div>
       </div>
+
       <!-- Info -->
-      <div class="flex flex-1 flex-col p-4">
+      <div class="card-info flex flex-1 flex-col p-4 w-full">
         <% if (d.source_label) { %>
-          <span class="mb-1 text-xs font-medium uppercase tracking-wider text-brand-500"><%= d.source_label %></span>
+          <span class="mb-1 text-xs font-semibold uppercase tracking-wider text-brand-600 dark:text-brand-400 flex items-center gap-1"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg><%= d.source_label %></span>
         <% } %>
-        <h3 class="font-semibold text-slate-800 transition-colors group-hover:text-brand-700 line-clamp-2"><%= d.id %>. <%= d.title %></h3>
+        <h3 class="font-bold text-slate-800 dark:text-slate-100 transition-colors group-hover:text-brand-600 dark:group-hover:text-brand-400 line-clamp-2 text-base leading-tight"><%= d.id %>. <%= d.title %></h3>
+        
         <% if (d.tags && d.tags.length) { %>
-          <div class="mt-2 flex flex-wrap gap-1">
+          <div class="mt-2.5 flex flex-wrap gap-1.5">
             <% d.tags.forEach(function (t) { %>
-              <span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500"><%= t %></span>
+              <span class="rounded-md px-2 py-0.5 text-xs font-medium <%= getTagColor(t) %> shadow-sm"><%= t %></span>
             <% }); %>
           </div>
         <% } %>
-        <p class="mt-auto pt-3 text-xs text-slate-400 truncate"><%= d.original_filename %></p>
+        <p class="mt-auto pt-4 text-xs text-slate-400 dark:text-slate-500 truncate" title="<%= d.original_filename %>">
+          <svg class="inline w-3 h-3 mr-0.5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path></svg>
+          <%= d.original_filename %>
+        </p>
       </div>
-    </a>
+    </div>
   <% }); %>
 </div>
 
 <!-- Bottom pagination -->
-<div class="mt-8 flex justify-center gap-3">
+<div class="mt-8 mb-10 flex justify-center gap-3">
   <%- include('../partials/pagination', { pg: pagination, part: 'nav' }) %>
 </div>
 
@@ -134,14 +217,54 @@
 </div><!-- /flex -->
 
 <!-- Back to top -->
-<button id="backToTop" class="fixed bottom-6 right-6 z-50 hidden rounded-full bg-brand-600 p-3 text-white shadow-lg transition-all hover:bg-brand-700 hover:shadow-xl" title="Lên đầu trang">
+<button id="backToTop" class="fixed bottom-6 right-6 z-50 hidden rounded-full bg-slate-800 dark:bg-slate-700 p-3 text-white shadow-lg transition-all hover:bg-slate-700 dark:hover:bg-slate-600 hover:-translate-y-1 hover:shadow-xl" title="Lên đầu trang">
   <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5"/></svg>
 </button>
 
 <script>
+// ----- Cấu hình giao diện Grid / List -----
+function setViewMode(mode) {
+  var container = document.getElementById('docsContainer');
+  var bGrid = document.getElementById('btn-grid-view');
+  var bList = document.getElementById('btn-list-view');
+
+  if (!container) return;
+
+  if (mode === 'list') {
+    container.classList.add('view-list');
+    container.classList.remove('grid', 'sm:grid-cols-2', 'lg:grid-cols-2', 'xl:grid-cols-3', 'gap-5');
+    
+    // Toggle active state on buttons
+    bList.classList.add('bg-slate-100', 'dark:bg-slate-700', 'text-slate-800', 'dark:text-slate-200');
+    bList.classList.remove('text-slate-400', 'hover:text-slate-600', 'dark:hover:text-slate-200');
+    
+    bGrid.classList.remove('bg-slate-100', 'dark:bg-slate-700', 'text-slate-800', 'dark:text-slate-200');
+    bGrid.classList.add('text-slate-400', 'hover:text-slate-600', 'dark:hover:text-slate-200');
+
+    localStorage.setItem('docsViewMode', 'list');
+  } else {
+    container.classList.remove('view-list');
+    container.classList.add('grid', 'sm:grid-cols-2', 'lg:grid-cols-2', 'xl:grid-cols-3', 'gap-5');
+    
+    // Toggle active state on buttons
+    bGrid.classList.add('bg-slate-100', 'dark:bg-slate-700', 'text-slate-800', 'dark:text-slate-200');
+    bGrid.classList.remove('text-slate-400', 'hover:text-slate-600', 'dark:hover:text-slate-200');
+    
+    bList.classList.remove('bg-slate-100', 'dark:bg-slate-700', 'text-slate-800', 'dark:text-slate-200');
+    bList.classList.add('text-slate-400', 'hover:text-slate-600', 'dark:hover:text-slate-200');
+
+    localStorage.setItem('docsViewMode', 'grid');
+  }
+}
+
+// ------ Hoạt động Live Update (Skeleton & AJAX) ------
 (function () {
   var timer, fetchCtrl;
   var currentPS = '<%= pagination.pageSize %>';
+
+  // Chạy setViewMode ngay lúc load
+  var savedMode = localStorage.getItem('docsViewMode') || 'grid';
+  setViewMode(savedMode);
 
   function buildUrl() {
     var p = new URLSearchParams();
@@ -169,6 +292,13 @@
 
     history.replaceState(null, '', url);
 
+    // Kích hoạt Skeleton loading vào container
+    var container = document.getElementById('docsContainer');
+    var skeletonTpl = document.getElementById('skeleton-template');
+    if (container && skeletonTpl) {
+      container.innerHTML = skeletonTpl.innerHTML;
+    }
+
     fetch(url, { signal: fetchCtrl.signal })
       .then(function (r) { return r.text(); })
       .then(function (html) {
@@ -177,12 +307,24 @@
         var newMain = newDoc.querySelector('main');
         if (!newMain) return;
         document.querySelector('main').innerHTML = newMain.innerHTML;
+        
+        // Phục hồi lại class ViewMode và Binding Events (Vì DOM đã bị ghi đè)
+        setViewMode(localStorage.getItem('docsViewMode') || 'grid');
         initPage();
+        
+        // Kích hoạt lại animation cho ajax HTML mới
+        const cards = document.querySelectorAll('.animate-fade-up');
+        cards.forEach((c) => {
+          c.style.animation = 'none';
+          c.offsetHeight; // trigger reflow
+          c.style.animation = null; 
+        });
+
         var inp = document.getElementById('searchInput');
         if (inp) {
           inp.value = searchVal;
           inp.focus();
-          inp.setSelectionRange(cursorPos, cursorPos);
+          try { inp.setSelectionRange(cursorPos, cursorPos); } catch(e){}
         }
       })
       .catch(function (e) {
@@ -197,10 +339,12 @@
     var deptInput = document.getElementById('deptInput');
     var mobileDept = document.getElementById('deptSelectMobile');
 
-    searchInput.addEventListener('input', function () {
-      clearTimeout(timer);
-      timer = setTimeout(liveUpdate, 500);
-    });
+    if(searchInput) {
+      searchInput.addEventListener('input', function () {
+        clearTimeout(timer);
+        timer = setTimeout(liveUpdate, 500);
+      });
+    }
 
     if (mobileDept) {
       mobileDept.addEventListener('change', function () {
@@ -236,12 +380,14 @@
 
   // Back to top
   var btt = document.getElementById('backToTop');
-  window.addEventListener('scroll', function () {
-    btt.classList.toggle('hidden', window.scrollY < 300);
-  });
-  btt.addEventListener('click', function () {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  });
+  if(btt) {
+    window.addEventListener('scroll', function () {
+      if(window.scrollY < 300) { btt.classList.add('hidden'); } else { btt.classList.remove('hidden'); }
+    });
+    btt.addEventListener('click', function () {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  }
 
   initPage();
 })();

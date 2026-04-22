@@ -1,89 +1,117 @@
 <%- include('../partials/header') %>
-<h1 class="text-2xl font-bold text-slate-800"><%= doc ? 'Sửa tài liệu' : 'Thêm tài liệu' %></h1>
-<% if (error) { %>
-  <p class="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-800"><%= error %></p>
-<% } %>
-<form
-  method="post"
-  action="<%= doc ? '/admin/documents/' + doc.id : '/admin/documents' %>"
-  enctype="multipart/form-data"
-  class="mt-6 space-y-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
->
-  <div>
-    <label class="block text-sm font-medium text-slate-700">Tiêu đề</label>
-    <input name="title" required value="<%= doc ? doc.title : '' %>" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 transition-all focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500" />
-  </div>
-  <div>
-    <label class="block text-sm font-medium text-slate-700">Nguồn</label>
-    <input name="source_label" required value="<%= doc ? doc.source_label : '' %>" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 transition-all focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500" placeholder="Ví dụ: Phòng KHCN" />
-  </div>
-  <div class="flex items-center gap-2">
-    <input type="checkbox" name="is_public" value="1" id="pub" <%= doc && doc.is_public ? 'checked' : '' %> class="h-4 w-4 rounded border-slate-300" />
-    <label for="pub" class="text-sm text-slate-700">Công khai</label>
-  </div>
-  <div>
-    <label class="block text-sm font-medium text-slate-700">Thuộc khoa/phòng</label>
-    <select name="owner_khoa_id" class="mt-1 w-full max-w-md rounded-md border border-slate-300 px-3 py-2 transition-all focus:border-brand-500 focus:ring-1 focus:ring-brand-500">
-      <option value="">— Không gán —</option>
-      <% departments.forEach(function (k) { %>
-        <option value="<%= k.id %>" <%= doc && doc.owner_khoa_id === k.id ? 'selected' : '' %>><%= k.name %></option>
-      <% }); %>
-    </select>
-  </div>
-  <div>
-    <label class="block text-sm font-medium text-slate-700">Chia sẻ xem cho các khoa khác</label>
-    <p class="text-xs text-slate-500">Chọn thêm khoa được phép xem (ngoài khoa sở hữu và tài liệu công khai).</p>
-    <div class="mt-2 rounded-md border border-slate-200 p-2">
-      <label class="flex items-center gap-2 border-b border-slate-100 pb-1.5 mb-1.5 text-sm font-medium text-slate-600 cursor-pointer">
-        <input type="checkbox" id="shareAll" class="h-4 w-4 rounded border-slate-300" />
-        Chọn tất cả
-      </label>
-      <div class="max-h-40 space-y-1 overflow-y-auto">
+<div class="max-w-4xl mx-auto">
+  <h1 class="text-2xl font-bold text-slate-800 dark:text-white"><%= doc ? 'Sửa tài liệu' : 'Thêm tài liệu' %></h1>
+  <% if (error) { %>
+    <p class="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-800"><%= error %></p>
+  <% } %>
+  <form
+    id="docForm"
+    method="post"
+    action="<%= doc ? '/admin/documents/' + doc.id : '/admin/documents' %>"
+    enctype="multipart/form-data"
+    class="mt-6 space-y-6 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6 shadow-sm"
+  >
+    <div>
+      <label class="block text-sm font-medium text-slate-700 dark:text-slate-300">Tiêu đề</label>
+      <input name="title" required value="<%= doc ? doc.title : '' %>" class="mt-1 w-full rounded-md border border-slate-300 dark:border-slate-600 bg-transparent dark:text-white px-3 py-2 transition-all focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500" />
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-slate-700 dark:text-slate-300">Nguồn</label>
+      <input name="source_label" required value="<%= doc ? doc.source_label : '' %>" class="mt-1 w-full rounded-md border border-slate-300 dark:border-slate-600 bg-transparent dark:text-white px-3 py-2 transition-all focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500" placeholder="Ví dụ: Phòng KHCN" />
+    </div>
+    <div class="flex items-center gap-2">
+      <input type="checkbox" name="is_public" value="1" id="pub" <%= doc && doc.is_public ? 'checked' : '' %> class="h-4 w-4 rounded border-slate-300 dark:border-slate-600 bg-transparent" />
+      <label for="pub" class="text-sm text-slate-700 dark:text-slate-300">Công khai toàn hệ thống</label>
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-slate-700 dark:text-slate-300">Thuộc khoa/phòng</label>
+      <select name="owner_khoa_id" class="mt-1 w-full max-w-md rounded-md border border-slate-300 dark:border-slate-600 bg-transparent dark:bg-slate-800 dark:text-white px-3 py-2 transition-all focus:border-brand-500 focus:ring-1 focus:ring-brand-500">
+        <option value="">— Không gán —</option>
         <% departments.forEach(function (k) { %>
-          <% var checked = doc && doc.shared_khoa_ids && doc.shared_khoa_ids.indexOf(k.id) !== -1; %>
-          <label class="flex items-center gap-2 text-sm">
-            <input type="checkbox" name="shared_khoa_ids" value="<%= k.id %>" class="share-cb" <%= checked ? 'checked' : '' %> />
-            <%= k.name %>
-          </label>
+          <option value="<%= k.id %>" <%= doc && doc.owner_khoa_id === k.id ? 'selected' : '' %>><%= k.name %></option>
         <% }); %>
+      </select>
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-slate-700 dark:text-slate-300">Chia sẻ xem cho các khoa khác</label>
+      <p class="text-xs text-slate-500 dark:text-slate-400">Chọn thêm khoa được phép xem (ngoài khoa sở hữu và tài liệu công khai).</p>
+      <div class="mt-2 rounded-md border border-slate-200 dark:border-slate-600 p-2">
+        <label class="flex items-center gap-2 border-b border-slate-100 dark:border-slate-700 pb-1.5 mb-1.5 text-sm font-medium text-slate-600 dark:text-slate-300 cursor-pointer">
+          <input type="checkbox" id="shareAll" class="h-4 w-4 rounded border-slate-300 bg-transparent" />
+          Chọn tất cả
+        </label>
+        <div class="max-h-40 space-y-1 overflow-y-auto">
+          <% departments.forEach(function (k) { %>
+            <% var checked = doc && doc.shared_khoa_ids && doc.shared_khoa_ids.indexOf(k.id) !== -1; %>
+            <label class="flex items-center gap-2 text-sm dark:text-slate-300">
+              <input type="checkbox" name="shared_khoa_ids" value="<%= k.id %>" class="share-cb border-slate-300 bg-transparent" <%= checked ? 'checked' : '' %> />
+              <%= k.name %>
+            </label>
+          <% }); %>
+        </div>
       </div>
     </div>
-  </div>
-  <div>
-    <label class="block text-sm font-medium text-slate-700">Tags (phân cách bằng dấu phẩy)</label>
-    <input name="tags" value="<%= doc && doc.tags ? doc.tags.join(', ') : '' %>" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 transition-all focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500" placeholder="Ví dụ: quy trình, biểu mẫu, hướng dẫn" />
-  </div>
-  <div class="grid gap-4 sm:grid-cols-2">
     <div>
-      <label class="block text-sm font-medium text-slate-700">File <%= doc ? '(để trống nếu giữ file cũ)' : '' %></label>
-      <input type="file" name="file" <%= doc ? '' : 'required' %> class="mt-1 w-full text-sm" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.odt,.ods,.odp" />
-      <% if (doc) { %>
-        <p class="mt-1 text-xs text-slate-500">Đang có: <%= doc.original_filename %></p>
-      <% } %>
+      <label class="block text-sm font-medium text-slate-700 dark:text-slate-300">Tags (phân cách bằng dấu phẩy)</label>
+      <input name="tags" value="<%= doc && doc.tags ? doc.tags.join(', ') : '' %>" class="mt-1 w-full rounded-md border border-slate-300 dark:border-slate-600 bg-transparent dark:text-white px-3 py-2 transition-all focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500" placeholder="Ví dụ: quy trình, biểu mẫu, hướng dẫn" />
     </div>
-    <div>
-      <label class="block text-sm font-medium text-slate-700">Ảnh banner (tùy chọn)</label>
-      <input type="file" name="banner" class="mt-1 w-full text-sm" accept="image/*" />
-      <% if (doc && doc.banner_filename) { %>
-        <p class="mt-1 text-xs text-slate-500">Đang có banner. Để trống giữ ảnh cũ.</p>
-      <% } else { %>
-        <p class="mt-1 text-xs text-slate-400">Không chọn → hiển thị icon định dạng file.</p>
-      <% } %>
+
+    <!-- Drag Drop Zone -->
+    <div class="grid gap-4 sm:grid-cols-2">
+      <!-- D&D document -->
+      <div>
+        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">File tài liệu <%= doc ? '(để trống nếu giữ nguyên)' : '*' %></label>
+        <div id="drop-zone-source" class="relative group flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-700/30 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer transition-all duration-300">
+          <div class="flex flex-col items-center justify-center pt-5 pb-6 pointer-events-none text-center px-4">
+            <svg class="w-8 h-8 mb-2 text-slate-400 group-hover:text-brand-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+            <p class="mb-1 text-sm text-slate-500 dark:text-slate-400"><span class="font-semibold text-brand-600 dark:text-brand-400">Chọn file</span> hoặc thả vào đây</p>
+            <p class="text-xs text-slate-400 truncate max-w-full" id="file-name-source"><%= doc ? 'Đang có: ' + doc.original_filename : 'MP4, PDF, Office, Ảnh...' %></p>
+          </div>
+          <input required id="file-input-source" type="file" name="file" class="hidden block w-full h-full absolute inset-0 cursor-pointer opacity-0" <%= doc ? 'disabled' : '' %> />
+        </div>
+      </div>
+
+      <!-- D&D banner -->
+      <div>
+        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Ảnh đại diện (tuỳ chọn)</label>
+        <div id="drop-zone-banner" class="relative group flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-700/30 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer transition-all duration-300">
+          <div class="flex flex-col items-center justify-center pt-5 pb-6 pointer-events-none text-center px-4">
+            <svg class="w-8 h-8 mb-2 text-slate-400 group-hover:text-amber-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+            <p class="mb-1 text-sm text-slate-500 dark:text-slate-400"><span class="font-semibold text-amber-600 dark:text-amber-400">Tải ảnh lên</span> hoặc kéo thả</p>
+            <p class="text-xs text-slate-400 truncate max-w-full" id="file-name-banner"><%= doc && doc.banner_filename ? 'Giữ nguyên ảnh cũ' : 'JPG, PNG, GIF...' %></p>
+          </div>
+          <input id="file-input-banner" accept="image/*" type="file" name="banner" class="hidden block w-full h-full absolute inset-0 cursor-pointer opacity-0" />
+        </div>
+      </div>
     </div>
-  </div>
-  <div class="flex gap-3">
-    <button type="submit" class="rounded-md bg-brand-600 px-4 py-2 font-semibold text-white transition-all hover:bg-brand-700 hover:shadow-md">Lưu</button>
-    <a href="/admin/documents" class="rounded-md border border-slate-300 px-4 py-2 font-medium text-slate-700 transition-all hover:bg-slate-100">Hủy</a>
-  </div>
-</form>
+
+    <!-- Progress bar -->
+    <div id="progress-container" class="hidden flex-col gap-2 mt-4">
+      <div class="flex justify-between text-xs font-semibold text-brand-600 dark:text-brand-400">
+        <span id="progress-status">Đang tải lên...</span>
+        <span id="progress-text">0%</span>
+      </div>
+      <div class="w-full h-2.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+        <div id="progress-bar" class="h-full bg-brand-500 rounded-full w-0 transition-all duration-300"></div>
+      </div>
+    </div>
+
+    <div class="flex gap-3 pt-4 border-t border-slate-100 dark:border-slate-700">
+      <button id="btn-submit" type="submit" class="rounded-md bg-brand-600 hover:bg-brand-500 px-5 py-2 font-semibold text-white shadow transition-all duration-200">Lưu dữ liệu</button>
+      <a href="/admin/documents" class="rounded-md border border-slate-300 dark:border-slate-600 px-5 py-2 font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition">Hủy</a>
+    </div>
+  </form>
+</div>
+
 <script>
 (function () {
+  // Sync checkboxes
   var all = document.getElementById('shareAll');
   var cbs = document.querySelectorAll('.share-cb');
   function syncAll() {
     var total = cbs.length, checked = 0;
     cbs.forEach(function (c) { if (c.checked) checked++; });
-    all.checked = checked === total;
+    all.checked = (total > 0 && checked === total);
     all.indeterminate = checked > 0 && checked < total;
   }
   all.addEventListener('change', function () {
@@ -91,6 +119,94 @@
   });
   cbs.forEach(function (c) { c.addEventListener('change', syncAll); });
   syncAll();
+
+  // Kéo Thả (Drag & Drop) & Progress Bar Logic
+  function bindDropZone(zoneId, inputId, nameId) {
+    var zone = document.getElementById(zoneId);
+    var input = document.getElementById(inputId);
+    var nameEl = document.getElementById(nameId);
+    
+    input.addEventListener('change', function(e) {
+      if (input.files.length > 0) {
+        nameEl.textContent = "Đã chọn: " + input.files[0].name;
+        zone.classList.add('border-brand-500', 'bg-brand-50');
+        zone.classList.remove('border-slate-300', 'bg-slate-50');
+        input.removeAttribute('disabled');
+      }
+    });
+
+    zone.addEventListener('dragover', function(e) {
+      e.preventDefault();
+      zone.classList.add('border-brand-500', 'bg-brand-50');
+    });
+    
+    zone.addEventListener('dragleave', function(e) {
+      e.preventDefault();
+      if(!input.files.length) zone.classList.remove('border-brand-500', 'bg-brand-50');
+    });
+
+    zone.addEventListener('drop', function(e) {
+      e.preventDefault();
+      if (e.dataTransfer.files.length) {
+        input.files = e.dataTransfer.files;
+        input.removeAttribute('disabled');
+        var event = new Event('change');
+        input.dispatchEvent(event);
+      }
+    });
+  }
+
+  bindDropZone('drop-zone-source', 'file-input-source', 'file-name-source');
+  bindDropZone('drop-zone-banner', 'file-input-banner', 'file-name-banner');
+
+  // Intercept Form Submit bằng AJAX để lấy Progress Bar
+  var form = document.getElementById('docForm');
+  var pContainer = document.getElementById('progress-container');
+  var pBar = document.getElementById('progress-bar');
+  var pText = document.getElementById('progress-text');
+  var pStatus = document.getElementById('progress-status');
+  var btnSubmit = document.getElementById('btn-submit');
+
+  form.addEventListener('submit', function(e) {
+    e.preventDefault();
+    var formData = new FormData(form);
+    
+    btnSubmit.disabled = true;
+    btnSubmit.classList.add('opacity-50', 'cursor-not-allowed');
+    pContainer.classList.remove('hidden');
+    pContainer.classList.add('flex');
+
+    var xhr = new XMLHttpRequest();
+    xhr.open(form.method, form.action, true);
+
+    xhr.upload.addEventListener('progress', function(e) {
+      if (e.lengthComputable) {
+        var percentComplete = Math.round((e.loaded / e.total) * 100);
+        pBar.style.width = percentComplete + '%';
+        pText.textContent = percentComplete + '%';
+        if (percentComplete === 100) {
+          pStatus.textContent = "Vui lòng chờ... Đang xử lý bóc băng AI & Nội dung...";
+          pBar.classList.add('animate-pulse');
+        }
+      }
+    });
+
+    xhr.onreadystatechange = function() {
+      if (xhr.readyState === 4) {
+        if (xhr.status >= 200 && xhr.status < 400) {
+          // Redirect với query báo hoàn thành để Toast bắt được bên danh sách Admin
+          window.location.href = '/admin/documents?success=' + encodeURIComponent('Tài liệu đã được tải lên & xử lý thành công!');
+        } else {
+          window.showToast('Có lỗi xảy ra khi tải lên. Mã lỗi: ' + xhr.status, 'error');
+          btnSubmit.disabled = false;
+          btnSubmit.classList.remove('opacity-50', 'cursor-not-allowed');
+          pContainer.classList.add('hidden');
+          pContainer.classList.remove('flex');
+        }
+      }
+    };
+    xhr.send(formData);
+  });
 })();
 </script>
 <%- include('../partials/footer') %>

@@ -1,7 +1,57 @@
   </main>
-  <footer class="mt-auto border-t border-slate-200 bg-white py-6 text-center text-sm text-slate-500">
+  <footer class="mt-auto border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 py-6 text-center text-sm text-slate-500 dark:text-slate-400 transition-colors">
     Nguyễn Đức Minh &nbsp;-&nbsp; Công nghệ thông tin
   </footer>
+  
+  <!-- Global Toast Notification System -->
+  <div id="toast-container" class="fixed bottom-4 right-4 z-[9999] flex flex-col gap-2"></div>
+  <script>
+    window.showToast = function(msg, type = 'success') {
+      const container = document.getElementById('toast-container');
+      if (!container) return;
+      const toast = document.createElement('div');
+      
+      const colors = type === 'success' ? 'bg-emerald-500 text-white' : (type === 'error' ? 'bg-rose-500 text-white' : 'bg-slate-800 text-white');
+      const icon = type === 'success' 
+        ? '<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>'
+        : '<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>';
+      
+      // Initial state: slide down & hidden
+      toast.className = `flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg transform transition-all duration-300 translate-y-full opacity-0 ${colors} pointer-events-none`;
+      toast.innerHTML = `${icon} <span class="text-sm font-medium mr-2">${msg}</span>`;
+      
+      container.appendChild(toast);
+      
+      // Animate In (slide up & fade in)
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          toast.classList.remove('translate-y-full', 'opacity-0');
+        });
+      });
+
+      // Animate Out after 3.5s
+      setTimeout(() => {
+        toast.classList.add('translate-y-full', 'opacity-0');
+        setTimeout(() => toast.remove(), 300);
+      }, 3500);
+    }
+
+    // Auto-show toast from URL params (flash messages via Redirect)
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('success')) window.showToast(urlParams.get('success'), 'success');
+      if (urlParams.get('error')) window.showToast(urlParams.get('error'), 'error');
+      if (urlParams.get('msg')) window.showToast(urlParams.get('msg'), 'info');
+      // Xoá param trên thanh địa chỉ cho sạch mà không reload
+      if (urlParams.has('success') || urlParams.has('error') || urlParams.has('msg')) {
+        const url = new URL(window.location);
+        url.searchParams.delete('success');
+        url.searchParams.delete('error');
+        url.searchParams.delete('msg');
+        window.history.replaceState({}, document.title, url);
+      }
+    } catch(e){}
+  </script>
   <%- include('ai-chat') %>
 </body>
 </html>
