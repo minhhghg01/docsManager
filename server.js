@@ -71,8 +71,50 @@ if (!process.env.JWT_SECRET) {
 
   const HOST = "0.0.0.0"; // Cho phép tất cả các thiết bị trong cùng mạng LAN truy cập
 
+  // Server HTTP thông thường 
   app.listen(PORT, HOST, () => {
-    console.log(`Docs Manager: http://localhost:${PORT}`);
-    console.log(`Truy cập trên mạng LAN: http://192.168.10.8:${PORT}`);
+    console.log(`[HTTP] Docs Manager: http://localhost:${PORT}`);
   });
+
+  // Server HTTPS bảo mật với chứng chỉ tự cấp
+  try {
+    const https = require("https");
+    const selfsigned = require("selfsigned");
+    const sslDir = path.join(__dirname, "ssl");
+    const keyPath = path.join(sslDir, "key.pem");
+    const certPath = path.join(sslDir, "cert.pem");
+
+    if (!fs.existsSync(sslDir)) {
+      fs.mkdirSync(sslDir);
+    }
+
+    let pems;
+    if (fs.existsSync(keyPath) && fs.existsSync(certPath)) {
+      pems = {
+        private: fs.readFileSync(keyPath, "utf-8"),
+        cert: fs.readFileSync(certPath, "utf-8"),
+      };
+    } else {
+      console.log("Đang khởi tạo chứng chỉ SSL mới cho cấu hình LAN...");
+      const attrs = [{ name: "commonName", value: "192.168.10.8" }];
+      pems = await selfsigned.generate(attrs, { days: 365, keySize: 2048 });
+      fs.writeFileSync(keyPath, pems.private);
+      fs.writeFileSync(certPath, pems.cert);
+    }
+
+    const httpsServer = https.createServer(
+      {
+        key: pems.private,
+        cert: pems.cert,
+      },
+      app
+    );
+
+    const PORT_HTTPS = 3443;
+    httpsServer.listen(PORT_HTTPS, HOST, () => {
+      console.log(`[HTTPS] Truy cập nội bộ cho Mobile (yêu cầu cấp quyền Mic): https://192.168.10.8:${PORT_HTTPS}`);
+    });
+  } catch (err) {
+    console.error("Lỗi khởi chạy server HTTPS:", err);
+  }
 })();

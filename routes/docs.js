@@ -180,6 +180,33 @@ router.get('/', (req, res) => {
   });
 });
 
+// API hỗ trợ tìm kiếm ngầm cho Tính năng Voice Command
+router.get('/api/search', (req, res) => {
+  const search = (req.query.q || '').trim();
+  const idParam = req.query.id;
+
+  if (idParam) {
+    const doc = getDocById(idParam);
+    if (doc && canViewDocument(req.user, doc)) {
+      return res.json([{ id: doc.id, title: doc.title, source_label: doc.source_label }]);
+    }
+    return res.json([]);
+  }
+
+  if (!search) return res.json([]);
+  
+  // Sử dụng lại hàm rà soát quyền hạn (chỉ lấy tài liệu có thể xem)
+  const allDocs = listVisibleDocs(req.user, { search });
+  
+  // Fixes: mapping the docs to ensure safe delivery and limiting results to top 5
+  const results = allDocs.slice(0, 5).map(d => ({
+     id: d.id,
+     title: d.title,
+     source_label: d.source_label
+  }));
+  res.json(results);
+});
+
 router.get('/:id/view', async (req, res, next) => {
   const doc = getDocById(req.params.id);
   if (!doc) return next();

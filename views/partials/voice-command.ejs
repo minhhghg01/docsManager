@@ -1,0 +1,503 @@
+<!-- Voice Command Component -->
+<button id="btn-voice-command"
+  onclick="toggleVoiceCommand()"
+  class="fixed bottom-6 left-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-slate-800 text-white shadow-lg transition-all hover:scale-110 hover:shadow-xl active:scale-95 border-2 border-slate-700"
+  title="Điều khiển bằng giọng nói">
+  
+  <div id="voice-pulse-ring" class="absolute inset-0 rounded-full border-4 border-rose-500 opacity-0 scale-100 transition-all pointer-events-none"></div>
+
+  <!-- Mic Icon -->
+  <svg id="icon-mic-off" class="h-6 w-6 text-slate-300" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+    <path stroke-linecap="round" stroke-linejoin="round" d="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 0 1-3-3V4.5a3 3 0 1 1 6 0v8.25a3 3 0 0 1-3 3Z" />
+  </svg>
+  
+  <svg id="icon-mic-on" class="h-6 w-6 text-rose-500 hidden animate-pulse" fill="currentColor" viewBox="0 0 24 24">
+    <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+    <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+  </svg>
+</button>
+
+<!-- Transcript Overlay Panel -->
+<div id="voice-overlay" class="fixed bottom-24 left-6 right-6 md:bottom-6 md:left-24 md:right-auto md:w-80 z-50 hidden rounded-2xl bg-slate-950/95 text-white p-4 shadow-2xl border border-slate-800 backdrop-blur-md transition-all duration-300 transform translate-y-4 opacity-0">
+  <div class="flex items-center justify-between border-b border-slate-800 pb-2 mb-2">
+    <div class="flex items-center gap-2">
+      <span id="voice-status-dot" class="h-2.5 w-2.5 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]"></span>
+      <span id="voice-status-text" class="text-[10px] font-bold uppercase tracking-wider text-rose-400">Đang nghe...</span>
+    </div>
+    <button onclick="toggleVoiceCommand()" class="text-slate-500 hover:text-slate-300 transition-colors">
+      <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+      </svg>
+    </button>
+  </div>
+  <div class="flex flex-col gap-1">
+    <p id="voice-transcript" class="text-sm font-medium text-slate-400 italic line-clamp-3 min-h-[42px] leading-relaxed">
+      Nói lệnh của bạn (ví dụ: "mở tài liệu Hướng dẫn His cho tôi")...
+    </p>
+    <p id="voice-instruction" class="text-[10px] text-slate-500 italic">
+      Nói "cho tôi" ở cuối để chạy lệnh, hoặc nói "tắt mic" để tắt.
+    </p>
+  </div>
+</div>
+
+<style>
+  @keyframes voiceRingPulse {
+    0% { transform: scale(0.9); opacity: 0.8; border-width: 4px; }
+    100% { transform: scale(1.6); opacity: 0; border-width: 0px; }
+  }
+  .voice-listening-pulse {
+    animation: voiceRingPulse 1.5s cubic-bezier(0.25, 0.8, 0.25, 1) infinite;
+  }
+</style>
+
+<script>
+  let recognition = null;
+  let isSystemActive = false; // Hệ thống có đang được bật không
+  let isProcessingCommand = false; // Đang trong trạng thái xử lý câu lệnh
+  let silenceTimer = null; // Timer phát hiện im lặng để tự chạy lệnh
+  let autoCloseTimer = null; // Tự động tắt mic nếu không nói gì sau 30 giây
+
+  const btnVoice = document.getElementById('btn-voice-command');
+  const micOff = document.getElementById('icon-mic-off');
+  const micOn = document.getElementById('icon-mic-on');
+  const pulseRing = document.getElementById('voice-pulse-ring');
+  
+  const voiceOverlay = document.getElementById('voice-overlay');
+  const voiceStatusDot = document.getElementById('voice-status-dot');
+  const voiceStatusText = document.getElementById('voice-status-text');
+  const voiceTranscript = document.getElementById('voice-transcript');
+
+  function showOverlay() {
+    voiceOverlay.classList.remove('hidden');
+    // Force reflow
+    voiceOverlay.offsetHeight;
+    voiceOverlay.classList.remove('opacity-0', 'translate-y-4');
+    voiceOverlay.classList.add('opacity-100', 'translate-y-0');
+  }
+
+  function hideOverlay() {
+    voiceOverlay.classList.remove('opacity-100', 'translate-y-0');
+    voiceOverlay.classList.add('opacity-0', 'translate-y-4');
+    setTimeout(() => {
+      if (voiceOverlay.classList.contains('opacity-0')) {
+        voiceOverlay.classList.add('hidden');
+      }
+    }, 300);
+  }
+
+  function updateStatus(state) {
+    // states: 'listening', 'processing', 'success', 'error'
+    if (state === 'listening') {
+      voiceStatusDot.className = "h-2.5 w-2.5 rounded-full bg-rose-500 animate-ping shadow-[0_0_8px_rgba(244,63,94,0.5)]";
+      voiceStatusText.innerText = "Đang nghe lệnh...";
+      voiceStatusText.className = "text-[10px] font-bold uppercase tracking-wider text-rose-400 animate-pulse";
+    } else if (state === 'processing') {
+      voiceStatusDot.className = "h-2.5 w-2.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]";
+      voiceStatusText.innerText = "Đang xử lý...";
+      voiceStatusText.className = "text-[10px] font-bold uppercase tracking-wider text-amber-400";
+    } else if (state === 'success') {
+      voiceStatusDot.className = "h-2.5 w-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]";
+      voiceStatusText.innerText = "Thành công";
+      voiceStatusText.className = "text-[10px] font-bold uppercase tracking-wider text-emerald-400";
+    } else if (state === 'error') {
+      voiceStatusDot.className = "h-2.5 w-2.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]";
+      voiceStatusText.innerText = "Thất bại";
+      voiceStatusText.className = "text-[10px] font-bold uppercase tracking-wider text-red-400";
+    }
+  }
+
+  function resetAutoCloseTimer() {
+      clearTimeout(autoCloseTimer);
+      autoCloseTimer = setTimeout(() => {
+          if (isSystemActive) {
+              console.log("Tự động tắt Micro để bảo mật và tiết kiệm pin.");
+              toggleVoiceCommand();
+          }
+      }, 30000); // 30 giây không nói gì sẽ tự đóng
+  }
+
+  if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+    const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+    recognition = new SpeechRecognitionAPI();
+    recognition.lang = 'vi-VN';
+    recognition.continuous = true;
+    recognition.interimResults = true;
+
+    recognition.onstart = function() {
+      micOff.classList.add('hidden');
+      micOn.classList.remove('hidden');
+      
+      pulseRing.classList.add('voice-listening-pulse');
+      micOn.classList.remove('text-blue-400');
+      micOn.classList.add('text-rose-500');
+      updateStatus('listening');
+      
+      resetAutoCloseTimer();
+      
+      if (window.__currentCloudAudio) {
+         window.__currentCloudAudio.pause();
+      }
+    };
+
+    recognition.onerror = function(event) {
+      console.error("Lỗi nhận diện giọng nói: ", event.error);
+      if(event.error === 'not-allowed') {
+        isSystemActive = false;
+        alert("Bạn chưa cấp quyền sử dụng Micro cho trình duyệt.");
+        updateUIMicOff();
+        hideOverlay();
+      }
+    };
+
+    recognition.onend = function() {
+      // Chỉ tự động restart khi hệ thống đang hoạt động và KHÔNG trong quá trình xử lý câu lệnh
+      if (isSystemActive && !isProcessingCommand) {
+        setTimeout(() => {
+          try { recognition.start(); } catch(e) {}
+        }, 300);
+      } else if (!isSystemActive) {
+        updateUIMicOff();
+        hideOverlay();
+      }
+    };
+
+    recognition.onresult = function(event) {
+      if (!isSystemActive || isProcessingCommand) return;
+
+      let finalTranscript = '';
+      let interimTranscript = '';
+
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        if (event.results[i].isFinal) {
+          finalTranscript += event.results[i][0].transcript;
+        } else {
+          interimTranscript += event.results[i][0].transcript;
+        }
+      }
+
+      const currentText = (finalTranscript || interimTranscript).trim();
+      if (!currentText) return;
+
+      // Reset các timer
+      clearTimeout(silenceTimer);
+      resetAutoCloseTimer();
+
+      // Hiển thị trực tiếp những gì người dùng đang nói lên màn hình
+      voiceTranscript.innerText = currentText;
+      voiceTranscript.classList.remove('italic', 'text-slate-400');
+      voiceTranscript.classList.add('text-slate-100');
+
+      // Kiểm tra từ khóa kết thúc câu lệnh "cho tôi" hoặc lệnh "tắt mic" trực tiếp
+      const lowerText = currentText.toLowerCase();
+      const hasSubmitKeyword = lowerText.includes('cho tôi');
+      const hasCloseKeyword = lowerText.includes('tắt mic') || lowerText.includes('tắt micro') || lowerText.includes('ngắt mic') || lowerText.includes('ngưng nghe');
+
+      if (currentText.length > 2) {
+          // Nếu phát hiện từ "cho tôi", từ khóa tắt mic, hoặc trình duyệt báo kết thúc nói (isFinal)
+          if (hasSubmitKeyword || hasCloseKeyword || finalTranscript) {
+              console.log("Kích hoạt lệnh ngay lập tức:", currentText);
+              executeCommand(currentText);
+          } else {
+              // Tự động kích hoạt sau 1.2s im lặng
+              silenceTimer = setTimeout(() => {
+                  executeCommand(currentText);
+              }, 1200);
+          }
+      }
+    };
+  } else {
+    btnVoice.style.display = 'none';
+  }
+
+  function executeCommand(text) {
+      clearTimeout(silenceTimer);
+      clearTimeout(autoCloseTimer);
+      console.log("Thực thi lệnh: ", text);
+      
+      // Đặt cờ đang xử lý và DỪNG mic để xóa lịch sử chữ đã nói
+      isProcessingCommand = true;
+      updateStatus('processing');
+      voiceTranscript.innerText = `Lệnh: "${text}"`;
+      
+      if (recognition) {
+          try { recognition.stop(); } catch(e) {}
+      }
+      
+      processVoiceCommand(text);
+      
+      // Đợi 3.5 giây hiển thị kết quả xử lý rồi tự động lắng nghe lệnh tiếp theo với buffer trống hoàn toàn
+      // CHỈ khởi động lại nếu lệnh không phải là lệnh Tắt mic (isSystemActive vẫn = true)
+      setTimeout(() => {
+         isProcessingCommand = false;
+         if (isSystemActive) {
+             try { recognition.start(); } catch(e) {}
+             
+             updateStatus('listening');
+             voiceTranscript.innerText = 'Đang nghe...';
+             voiceTranscript.classList.add('italic', 'text-slate-400');
+             voiceTranscript.classList.remove('text-slate-100');
+             resetAutoCloseTimer();
+         }
+      }, 3500);
+  }
+
+  function toggleVoiceCommand() {
+    if (!recognition) return;
+    if (isSystemActive) {
+      isSystemActive = false;
+      isProcessingCommand = false;
+      clearTimeout(autoCloseTimer);
+      clearTimeout(silenceTimer);
+      recognition.stop();
+      updateUIMicOff();
+      hideOverlay();
+    } else {
+      isSystemActive = true;
+      isProcessingCommand = false;
+      try {
+        recognition.start();
+        showOverlay();
+        updateStatus('listening');
+        voiceTranscript.innerText = 'Đang nghe...';
+        voiceTranscript.classList.add('italic', 'text-slate-400');
+        voiceTranscript.classList.remove('text-slate-100');
+      } catch (e) {
+        console.warn('Recognition already started');
+      }
+    }
+  }
+
+  // --- Chuyển đổi số chữ tiếng Việt thành số dạng chữ số (ví dụ: mười tám -> 18) --- //
+  function convertVietnameseNumbers(text) {
+    let result = text.toLowerCase();
+    const tens = {
+      'hai mươi': 20, 'ba mươi': 30, 'bốn mươi': 40, 'năm mươi': 50,
+      'sáu mươi': 60, 'bảy mươi': 70, 'tám mươi': 80, 'chín mươi': 90
+    };
+    const units = {
+      'mốt': 1, 'hai': 2, 'ba': 3, 'bốn': 4, 'tư': 4, 'lăm': 5, 'nhăm': 5, 'năm': 5,
+      'sáu': 6, 'bảy': 7, 'tám': 8, 'chín': 9
+    };
+    for (let t in tens) {
+      for (let u in units) {
+        const phrase = t + ' ' + u;
+        const val = tens[t] + units[u];
+        result = result.replace(new RegExp('\\b' + phrase + '\\b', 'g'), val.toString());
+      }
+    }
+    const vnNumbers = {
+      'mười chín': '19', 'mười tám': '18', 'mười bảy': '17', 'mười sáu': '16', 
+      'mười lăm': '15', 'mười bốn': '14', 'mười ba': '13', 'mười hai': '12', 
+      'mười một': '11', 'mười': '10',
+      'chín mươi': '90', 'tám mươi': '80', 'bảy mươi': '70', 'sáu mươi': '60',
+      'năm mươi': '50', 'bốn mươi': '40', 'ba mươi': '30', 'hai mươi': '20',
+      'chín': '9', 'tám': '8', 'bảy': '7', 'sáu': '6', 
+      'năm': '5', 'bốn': '4', 'ba': '3', 'hai': '2', 'một': '1', 'không': '0'
+    };
+    for (let key in vnNumbers) {
+      result = result.replace(new RegExp('\\b' + key + '\\b', 'g'), vnNumbers[key]);
+    }
+    return result;
+  }
+
+  // --- Logic Điều hướng & Hành động của Trợ lý Ảo --- //
+  async function processVoiceCommand(text) {
+    // Chuyển đổi số chữ sang chữ số
+    const convertedText = convertVietnameseNumbers(text);
+    const lowerText = convertedText.toLowerCase();
+    
+    // Lệnh 4: Tắt mic bằng giọng nói (Xử lý trước để tránh chạy tiếp)
+    if (lowerText.includes('tắt mic') || lowerText.includes('tắt micro') || lowerText.includes('ngắt mic') || lowerText.includes('ngưng nghe')) {
+      updateStatus('success');
+      voiceTranscript.innerText = `Đã tắt Micro.`;
+      if (window.playGlobalTtSAudio) {
+         window.playGlobalTtSAudio(`Đã tắt micro.`, 'btn-voice-command');
+      }
+      // Đổi trạng thái active về false ngay lập tức để không tự restart
+      isSystemActive = false;
+      setTimeout(() => {
+         updateUIMicOff();
+         hideOverlay();
+      }, 1000);
+      return;
+    }
+
+    // Lệnh 1: Mở tài liệu [KEYWORD]
+    if (lowerText.includes('mở tài liệu') || lowerText.includes('tìm tài liệu')) {
+      // 1.1. Kiểm tra xem có yêu cầu mở theo ID số hay không
+      // Match các trường hợp: "mở tài liệu số 18", "mở tài liệu id 18", "mở tài liệu 18", "mở tài liệu có id là 18"
+      const idMatch = lowerText.match(/(?:mở|tìm)\s+tài\s+liệu\s+(?:số\s+|id\s+|có\s+id\s+là\s+)?(\d+)/i);
+      
+      if (idMatch) {
+        const targetId = idMatch[1];
+        voiceTranscript.innerText = `Đang tìm tài liệu ID: ${targetId}...`;
+
+        try {
+          const res = await fetch('/docs/api/search?id=' + encodeURIComponent(targetId));
+          const docs = await res.json();
+          if (docs && docs.length > 0) {
+            const targetDoc = docs[0];
+            updateStatus('success');
+            voiceTranscript.innerText = `Đang mở tài liệu ID ${targetId}: ${targetDoc.title}`;
+            if (window.playGlobalTtSAudio) {
+              window.playGlobalTtSAudio(`Tài liệu ${targetDoc.title} đang được mở`, 'btn-voice-command');
+            }
+            setTimeout(() => {
+              window.location.href = `/docs/${targetDoc.id}`;
+            }, 1200);
+          } else {
+            updateStatus('error');
+            voiceTranscript.innerText = `Không tìm thấy tài liệu nào có ID là ${targetId}`;
+            if (window.playGlobalTtSAudio) {
+               window.playGlobalTtSAudio(`Xin lỗi, tôi không tìm thấy tài liệu nào có ID là ${targetId}`, 'btn-voice-command');
+            }
+          }
+        } catch (e) {
+          console.error("Lỗi search theo ID: ", e);
+          updateStatus('error');
+          voiceTranscript.innerText = `Có lỗi xảy ra khi tìm kiếm tài liệu`;
+        }
+        return;
+      }
+
+      // 1.2. Nếu không phải ID số, tìm kiếm theo tên như bình thường
+      const keywordRegex = /(mở|tìm)\s+tài\s+liệu\s+(.+)/i;
+      const match = text.match(keywordRegex);
+      let searchPhrase = match ? match[2].trim() : '';
+
+      if (searchPhrase) {
+        // Loại bỏ các từ thừa ở cuối
+        searchPhrase = searchPhrase.replace(/\s+(cho tôi|đi|nhé|giùm|hộ|với|giùm tôi|hộ tôi)$/i, '').trim();
+        
+        // Chuẩn hóa phát âm Việt-Anh cho các cụm từ chuyên môn
+        let normalizedPhrase = searchPhrase.toLowerCase();
+        const phoneticRules = [
+          { patterns: [/đốc\s*(men\s*nơ\s*giơ|ma\s*na\s*gơ|me\s*ni\s*dơ|ma\s*nơ\s*giơ|ma\s*na\s*ger)/gi, /doc\s*manager/gi, /đọc\s*manager/gi, /đọc\s*men\s*nơ\s*giơ/gi], replacement: 'docsmanager' },
+          { patterns: [/hít\s*sờ/gi, /hít\s*s/gi, /hít/gi, /hi\s*ét/gi, /hy\s*ét/gi], replacement: 'his' },
+          { patterns: [/tét/gi, /tes/gi], replacement: 'test' },
+          { patterns: [/ây\s*ai/gi, /ây\s*i/gi], replacement: 'ai' },
+          { patterns: [/ban\s*nơ/gi, /ben\s*nơ/gi], replacement: 'banner' },
+          { patterns: [/đê\s*mô/gi], replacement: 'demo' },
+          { patterns: [/ca\s*lờ\s*tê\s*nờ/gi, /ca\s*lờ\s*tê\s*n/gi], replacement: 'kltn' },
+          { patterns: [/quy\s*lờ\s*xê\s*lờ/gi, /quy\s*lờ\s*xê\s*n/gi], replacement: 'qlcl' },
+          { patterns: [/xê\s*en\s*tê\s*tê/gi, /cờ\s*nờ\s*tờ\s*tờ/gi], replacement: 'cntt' }
+        ];
+
+        phoneticRules.forEach(rule => {
+          rule.patterns.forEach(pattern => {
+            normalizedPhrase = normalizedPhrase.replace(pattern, rule.replacement);
+          });
+        });
+
+        // Loại bỏ khoảng trắng thừa sau khi replace
+        normalizedPhrase = normalizedPhrase.replace(/\s+/g, ' ').trim();
+        
+        voiceTranscript.innerText = `Đang tìm kiếm: "${normalizedPhrase}"`;
+
+        try {
+          const res = await fetch('/docs/api/search?q=' + encodeURIComponent(normalizedPhrase));
+          const docs = await res.json();
+          if (docs && docs.length > 0) {
+            const targetDoc = docs[0];
+            updateStatus('success');
+            voiceTranscript.innerText = `Đang mở tài liệu: ${targetDoc.title}`;
+            if (window.playGlobalTtSAudio) {
+              window.playGlobalTtSAudio(`Tài liệu ${targetDoc.title} đang được mở`, 'btn-voice-command');
+            }
+            setTimeout(() => {
+              window.location.href = `/docs/${targetDoc.id}`;
+            }, 1200);
+          } else {
+            updateStatus('error');
+            voiceTranscript.innerText = `Không tìm thấy tài liệu nào tên là: "${normalizedPhrase}"`;
+            if (window.playGlobalTtSAudio) {
+               window.playGlobalTtSAudio(`Xin lỗi, tôi không tìm thấy tài liệu nào tên là ${normalizedPhrase}`, 'btn-voice-command');
+            }
+          }
+        } catch (e) {
+          console.error("Lỗi search: ", e);
+          updateStatus('error');
+          voiceTranscript.innerText = `Có lỗi xảy ra khi tìm kiếm tài liệu`;
+        }
+      } else {
+          updateStatus('error');
+          voiceTranscript.innerText = `Bạn muốn mở tài liệu nào? Hãy nói rõ tên.`;
+          if (window.playGlobalTtSAudio) {
+              window.playGlobalTtSAudio(`Bạn muốn mở tài liệu nào? Vui lòng nói rõ hơn`, 'btn-voice-command');
+          }
+      }
+      return;
+    }
+
+    // Lệnh 2: Đọc tài liệu / Tóm tắt tài liệu
+    if (lowerText.includes('đọc tài liệu') || lowerText.includes('tóm tắt tài liệu') || lowerText.includes('đọc nội dung') || lowerText.includes('đọc cho tôi nghe')) {
+      if (window.location.pathname.startsWith('/docs/') && !window.location.pathname.includes('/view')) {
+         if (typeof switchTab === 'function') switchTab('summary');
+         
+         const summaryEl = document.getElementById('summary-content');
+         if (summaryEl && summaryEl.classList.contains('hidden')) {
+             const btnGen = document.getElementById('btn-generate-summary');
+             if (btnGen) {
+                 btnGen.click();
+                 updateStatus('success');
+                 voiceTranscript.innerText = `Đang tạo tóm tắt tài liệu...`;
+                 if (window.playGlobalTtSAudio) {
+                    window.playGlobalTtSAudio(`Đang tiến hành tạo tóm tắt...`, 'btn-voice-command');
+                 }
+                 return;
+             }
+         } else if (summaryEl) {
+             const textToRead = summaryEl.innerText.trim();
+             if (textToRead && !textToRead.includes('Đang tự động tạo')) {
+                 updateStatus('success');
+                 voiceTranscript.innerText = `Đang đọc tóm tắt...`;
+                 if (window.playGlobalTtSAudio) {
+                    window.playGlobalTtSAudio(textToRead, 'btn-voice-command');
+                 }
+             } else {
+                 updateStatus('error');
+                 voiceTranscript.innerText = `Chưa có nội dung tóm tắt để đọc.`;
+                 if (window.playGlobalTtSAudio) {
+                    window.playGlobalTtSAudio(`Chưa có nội dung tóm tắt để đọc.`, 'btn-voice-command');
+                 }
+             }
+         }
+      } else {
+          updateStatus('error');
+          voiceTranscript.innerText = `Bạn cần mở một tài liệu cụ thể trước khi yêu cầu đọc.`;
+          if (window.playGlobalTtSAudio) {
+              window.playGlobalTtSAudio(`Bạn cần mở một tài liệu cụ thể trước khi yêu cầu đọc.`, 'btn-voice-command');
+          }
+      }
+      return;
+    }
+
+    // Lệnh 3: Trở về / Trang chủ
+    if (lowerText.includes('quay lại') || lowerText.includes('trang chủ') || lowerText.includes('đóng tài liệu') || lowerText.includes('về nhà')) {
+      updateStatus('success');
+      voiceTranscript.innerText = `Đang trở về danh sách tài liệu...`;
+      if (window.playGlobalTtSAudio) {
+         window.playGlobalTtSAudio(`Trở về danh sách tài liệu.`, 'btn-voice-command');
+      }
+      setTimeout(() => {
+         window.location.href = `/docs`;
+      }, 800);
+      return;
+    }
+
+    // Lệnh không xác định
+    updateStatus('error');
+    voiceTranscript.innerText = `Không nhận diện được lệnh: "${text}"`;
+    if (window.playGlobalTtSAudio) {
+       window.playGlobalTtSAudio(`Tôi không hiểu rõ mệnh lệnh "${text}".`, 'btn-voice-command');
+    }
+  }
+
+  function updateUIMicOff() {
+    micOff.classList.remove('hidden');
+    micOn.classList.add('hidden');
+    pulseRing.classList.remove('voice-listening-pulse');
+    micOn.classList.remove('text-rose-500');
+    micOn.classList.remove('text-blue-400');
+  }
+</script>
