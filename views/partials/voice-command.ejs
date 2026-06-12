@@ -56,6 +56,7 @@
   let isProcessingCommand = false; // Đang trong trạng thái xử lý câu lệnh
   let silenceTimer = null; // Timer phát hiện im lặng để tự chạy lệnh
   let autoCloseTimer = null; // Tự động tắt mic nếu không nói gì sau 30 giây
+  let lastRecognizedText = ''; // Lưu trữ đoạn text nhận diện mới nhất để chống ngắt sớm trên Mobile
 
   const btnVoice = document.getElementById('btn-voice-command');
   const micOff = document.getElementById('icon-mic-off');
@@ -150,8 +151,12 @@
     };
 
     recognition.onend = function() {
-      // Chỉ tự động restart khi hệ thống đang hoạt động và KHÔNG trong quá trình xử lý câu lệnh
-      if (isSystemActive && !isProcessingCommand) {
+      // Mobile FIX: Nếu thiết bị di động tự kết thúc audio session nhưng đã có câu nhận dạng được tích lũy
+      if (isSystemActive && !isProcessingCommand && lastRecognizedText.trim().length > 2) {
+        console.log("Mobile Force Trigger on End:", lastRecognizedText);
+        executeCommand(lastRecognizedText);
+      } else if (isSystemActive && !isProcessingCommand) {
+        // Tự khởi động lại nếu bị ngắt tự động (Safari thường tự ngắt sau 5-10s im lặng)
         setTimeout(() => {
           try { recognition.start(); } catch(e) {}
         }, 300);
@@ -178,6 +183,9 @@
       const currentText = (finalTranscript || interimTranscript).trim();
       if (!currentText) return;
 
+      // Lưu trữ dữ liệu text để xử lý khi thiết bị di động ngắt sớm
+      lastRecognizedText = currentText;
+
       // Reset các timer
       clearTimeout(silenceTimer);
       resetAutoCloseTimer();
@@ -193,12 +201,14 @@
       const hasCloseKeyword = lowerText.includes('tắt mic') || lowerText.includes('tắt micro') || lowerText.includes('ngắt mic') || lowerText.includes('ngưng nghe');
 
       if (currentText.length > 2) {
-          // Nếu phát hiện từ "cho tôi", từ khóa tắt mic, hoặc trình duyệt báo kết thúc nói (isFinal)
-          if (hasSubmitKeyword || hasCloseKeyword || finalTranscript) {
-              console.log("Kích hoạt lệnh ngay lập tức:", currentText);
+          // FIX: Chỉ kích hoạt lệnh NGAY LẬP TỨC khi phát hiện từ khóa chủ đích ("cho tôi", "tắt mic")
+          // Bỏ qua check "|| finalTranscript" ở đây vì trên iPad/Android, bộ Speech API thường đánh dấu isFinal
+          // quá sớm sau chỉ 1-2 từ (do hơi thở ngắn hoặc ngắt âm), gây ra lỗi chạy lệnh vụn khi chưa nói hết câu.
+          if (hasSubmitKeyword || hasCloseKeyword) {
+              console.log("Kích hoạt lệnh ngay lập tức bằng từ khóa:", currentText);
               executeCommand(currentText);
           } else {
-              // Tự động kích hoạt sau 1.2s im lặng
+              // Tự động kích hoạt sau 1.2s im lặng (đợi người dùng nói hết)
               silenceTimer = setTimeout(() => {
                   executeCommand(currentText);
               }, 1200);
@@ -212,6 +222,7 @@
   function executeCommand(text) {
       clearTimeout(silenceTimer);
       clearTimeout(autoCloseTimer);
+      lastRecognizedText = ''; // Clear để tránh kích hoạt trùng lặp trong sự kiện onend
       console.log("Thực thi lệnh: ", text);
       
       // Đặt cờ đang xử lý và DỪNG mic để xóa lịch sử chữ đã nói
@@ -246,6 +257,7 @@
     if (isSystemActive) {
       isSystemActive = false;
       isProcessingCommand = false;
+      lastRecognizedText = '';
       clearTimeout(autoCloseTimer);
       clearTimeout(silenceTimer);
       recognition.stop();
@@ -254,6 +266,7 @@
     } else {
       isSystemActive = true;
       isProcessingCommand = false;
+      lastRecognizedText = '';
       try {
         recognition.start();
         showOverlay();
@@ -265,6 +278,14 @@
         console.warn('Recognition already started');
       }
     }
+  }
+
+  function updateUIMicOff() {
+    micOff.classList.remove('hidden');
+    micOn.classList.add('hidden');
+    pulseRing.classList.remove('voice-listening-pulse');
+    micOn.classList.remove('text-rose-500');
+    micOn.classList.remove('text-blue-400');
   }
 
   // --- Chuyển đổi số chữ tiếng Việt thành số dạng chữ số (ví dụ: mười tám -> 18) --- //
@@ -369,11 +390,14 @@
         // Loại bỏ các từ thừa ở cuối
         searchPhrase = searchPhrase.replace(/\s+(cho tôi|đi|nhé|giùm|hộ|với|giùm tôi|hộ tôi)$/i, '').trim();
         
+        // Loại bỏ các dấu câu ở cuối câu (chấm, phẩy, hỏi, than) do Speech API tự động thêm
+        searchPhrase = searchPhrase.replace(/[.?!,]+$/g, '').trim();
+        
         // Chuẩn hóa phát âm Việt-Anh cho các cụm từ chuyên môn
         let normalizedPhrase = searchPhrase.toLowerCase();
         const phoneticRules = [
-          { patterns: [/đốc\s*(men\s*nơ\s*giơ|ma\s*na\s*gơ|me\s*ni\s*dơ|ma\s*nơ\s*giơ|ma\s*na\s*ger)/gi, /doc\s*manager/gi, /đọc\s*manager/gi, /đọc\s*men\s*nơ\s*giơ/gi], replacement: 'docsmanager' },
-          { patterns: [/hít\s*sờ/gi, /hít\s*s/gi, /hít/gi, /hi\s*ét/gi, /hy\s*ét/gi], replacement: 'his' },
+          { patterns: [/đốc\s*(men\s*nơ\s*giơ|ma\s*na\s*gơ|me\s*ni\s*dơ|ma\s*nơ\s*giơ|ma\s*na\s*ger)/gi, /doc\s*manager/gi, /docs\s*manager/gi, /đọc\s*manager/gi, /đọc\s*men\s*nơ\s*giơ/gi], replacement: 'docsmanager' },
+          { patterns: [/hít\s*sờ/gi, /hít\s*s/gi, /hít/gi, /hi\s*ét/gi, /hy\s*ét/gi, /hit/gi, /hit\s*s/gi, /hit\s*sờ/gi], replacement: 'his' },
           { patterns: [/tét/gi, /tes/gi], replacement: 'test' },
           { patterns: [/ây\s*ai/gi, /ây\s*i/gi], replacement: 'ai' },
           { patterns: [/ban\s*nơ/gi, /ben\s*nơ/gi], replacement: 'banner' },
@@ -491,13 +515,5 @@
     if (window.playGlobalTtSAudio) {
        window.playGlobalTtSAudio(`Tôi không hiểu rõ mệnh lệnh "${text}".`, 'btn-voice-command');
     }
-  }
-
-  function updateUIMicOff() {
-    micOff.classList.remove('hidden');
-    micOn.classList.add('hidden');
-    pulseRing.classList.remove('voice-listening-pulse');
-    micOn.classList.remove('text-rose-500');
-    micOn.classList.remove('text-blue-400');
   }
 </script>
