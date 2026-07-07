@@ -181,7 +181,11 @@ function getTagColor(str) {
         <!-- Quick Actions Overlay -->
         <div class="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-2 transition-opacity duration-200 z-10 hidden md:flex backdrop-blur-sm">
           <button type="button" onclick="event.stopPropagation(); window.location='/docs/<%= d.id %>'" class="px-3 py-1.5 bg-white text-slate-800 text-xs font-semibold rounded hover:bg-slate-100 shadow transition-transform hover:scale-105">Xem</button>
-          <button type="button" onclick="event.stopPropagation(); window.location='/docs/<%= d.id %>/download'" class="px-3 py-1.5 bg-brand-600 text-white text-xs font-semibold rounded hover:bg-brand-500 shadow transition-transform hover:scale-105 flex items-center gap-1">Tải xuống</button>
+          <% if (d.stored_filename.startsWith('http')) { %>
+            <a href="<%= d.stored_filename %>" target="_blank" onclick="event.stopPropagation();" class="px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded hover:bg-blue-500 shadow transition-transform hover:scale-105 flex items-center gap-1">Mở liên kết</a>
+          <% } else { %>
+            <button type="button" onclick="event.stopPropagation(); window.location='/docs/<%= d.id %>/download'" class="px-3 py-1.5 bg-brand-600 text-white text-xs font-semibold rounded hover:bg-brand-500 shadow transition-transform hover:scale-105 flex items-center gap-1">Tải xuống</button>
+          <% } %>
         </div>
       </div>
 

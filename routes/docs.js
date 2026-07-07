@@ -217,6 +217,10 @@ router.get('/:id/view', async (req, res, next) => {
     return res.type('html').status(403).send(simpleMsg('Bạn không có quyền xem tài liệu này.'));
   }
 
+  if (doc.stored_filename.startsWith('http://') || doc.stored_filename.startsWith('https://')) {
+    return res.redirect(doc.stored_filename);
+  }
+
   const filePath = path.join(UPLOAD_ROOT, doc.stored_filename);
   if (!fs.existsSync(filePath)) {
     return res.type('html').status(404).send(simpleMsg('File không còn trên máy chủ.'));
@@ -254,6 +258,11 @@ router.get('/:id/download', (req, res, next) => {
     }
     return res.status(403).send('Forbidden');
   }
+
+  if (doc.stored_filename.startsWith('http://') || doc.stored_filename.startsWith('https://')) {
+    return res.redirect(doc.stored_filename);
+  }
+
   const filePath = path.join(UPLOAD_ROOT, doc.stored_filename);
   if (!fs.existsSync(filePath)) return res.status(404).send('Not found');
   res.download(filePath, doc.original_filename);

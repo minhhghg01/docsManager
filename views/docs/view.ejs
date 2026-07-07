@@ -76,14 +76,24 @@
 
       <!-- Action buttons -->
       <div class="flex shrink-0 gap-2">
-        <a href="/docs/<%= doc.id %>/download"
-          class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-200 transition-all hover:bg-slate-100 dark:hover:bg-slate-600 hover:shadow-sm">
-          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round"
-              d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-          </svg>
-          Tải file gốc
-        </a>
+        <% if (doc.stored_filename.startsWith('http')) { %>
+          <a href="<%= doc.stored_filename %>" target="_blank"
+            class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-200 transition-all hover:bg-slate-100 dark:hover:bg-slate-600 hover:shadow-sm">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            </svg>
+            Mở liên kết
+          </a>
+        <% } else { %>
+          <a href="/docs/<%= doc.id %>/download"
+            class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-200 transition-all hover:bg-slate-100 dark:hover:bg-slate-600 hover:shadow-sm">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+            </svg>
+            Tải file gốc
+          </a>
+        <% } %>
         <% if (user && user.role==='admin' ) { %>
           <a href="/admin/documents/<%= doc.id %>/edit"
             class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-200 transition-all hover:bg-slate-100 dark:hover:bg-slate-600 hover:shadow-sm">
@@ -182,9 +192,55 @@
   </div>
 
   <!-- ================= Full Document Viewer ================= -->
+  <% 
+    var iframeSrc = '/docs/' + doc.id + '/view';
+    var isLink = doc.stored_filename.startsWith('http://') || doc.stored_filename.startsWith('https://');
+    if (isLink) {
+      var url = doc.stored_filename;
+      // YouTube conversion
+      var ytMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\s?#]+)/);
+      if (ytMatch) {
+        iframeSrc = 'https://www.youtube.com/embed/' + ytMatch[1];
+      } else {
+        // Google Drive conversion
+        var gdMatch = url.match(/drive\.google\.com\/file\/d\/([^\/\s?#]+)/);
+        if (gdMatch) {
+          iframeSrc = 'https://drive.google.com/file/d/' + gdMatch[1] + '/preview';
+        }
+      }
+    }
+  %>
   <div id="view-full"
     class="block mt-5 overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-900 shadow-inner">
-    <iframe title="Xem tài liệu" src="/docs/<%= doc.id %>/view"
+    <% if (isLink) { %>
+      <div class="bg-white dark:bg-slate-800 p-8 text-center flex flex-col items-center justify-center border-b border-slate-200 dark:border-slate-700">
+        <div class="h-16 w-16 bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center mb-4">
+          <svg class="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+          </svg>
+        </div>
+        <h3 class="text-lg font-bold text-slate-800 dark:text-white mb-2">Tài liệu này được lưu trữ dưới dạng liên kết ngoài</h3>
+        <p class="text-sm text-slate-500 dark:text-slate-400 max-w-md mb-4 truncate w-full"><%= doc.stored_filename %></p>
+        
+        <a href="<%= doc.stored_filename %>" target="_blank" class="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3 shadow-md hover:shadow-lg transition-all active:scale-95">
+          <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+          </svg>
+          Mở liên kết trong tab mới
+        </a>
+
+        <!-- Hướng dẫn thân thiện -->
+        <div class="mt-5 p-3.5 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/50 rounded-xl max-w-lg text-left">
+          <p class="text-xs text-amber-700 dark:text-amber-400 flex items-start gap-2 font-medium">
+            <svg class="h-5 w-5 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <span><strong>Lưu ý bảo mật:</strong> Các trang web lớn như Facebook, Google, YouTube,... chặn không cho phép nhúng trực tiếp vào các trang web khác (iframe). Nếu ô hiển thị bên dưới báo lỗi, bạn chỉ cần nhấn vào nút <strong>Mở liên kết trong tab mới</strong> ở trên để truy cập.</span>
+          </p>
+        </div>
+      </div>
+    <% } %>
+    <iframe title="Xem tài liệu" src="<%= iframeSrc %>"
       class="h-[95vh] w-full bg-white border-0 filter dark:invert"></iframe>
   </div>
 

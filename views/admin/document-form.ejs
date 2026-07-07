@@ -53,33 +53,105 @@
     </div>
     <div>
       <label class="block text-sm font-medium text-slate-700 dark:text-slate-300">Tags (phân cách bằng dấu phẩy)</label>
-      <input name="tags" value="<%= doc && doc.tags ? doc.tags.join(', ') : '' %>" class="mt-1 w-full rounded-md border border-slate-300 dark:border-slate-600 bg-transparent dark:text-white px-3 py-2 transition-all focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500" placeholder="Ví dụ: quy trình, biểu mẫu, hướng dẫn" />
+      <input id="tags-input" name="tags" value="<%= doc && doc.tags ? doc.tags.join(', ') : '' %>" class="mt-1 w-full rounded-md border border-slate-300 dark:border-slate-600 bg-transparent dark:text-white px-3 py-2 transition-all focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500" placeholder="Ví dụ: quy trình, biểu mẫu, hướng dẫn" />
+      <% if (typeof tags !== 'undefined' && tags && tags.length > 0) { %>
+        <div class="mt-2 flex flex-wrap gap-1.5 items-center">
+          <span class="text-xs text-slate-500 dark:text-slate-400 mr-1 select-none">Tags hiện có:</span>
+          <% tags.forEach(function (tag) { %>
+            <button type="button" data-tag="<%= tag %>" class="tag-badge text-xs px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-600 transition-colors select-none">
+              <%= tag %>
+            </button>
+          <% }); %>
+        </div>
+      <% } %>
     </div>
 
-    <!-- Drag Drop Zone -->
+    <!-- Hình thức tài liệu (File hoặc Link) -->
+    <div>
+      <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Hình thức tài liệu</label>
+      <div class="flex gap-6 items-center">
+        <label class="inline-flex items-center gap-2 cursor-pointer text-sm text-slate-700 dark:text-slate-300">
+          <input type="radio" name="source_type" value="file" id="source-type-file" class="h-4 w-4 text-brand-600 focus:ring-brand-500 border-slate-300 dark:border-slate-600 bg-transparent" <%= (!doc || !doc.stored_filename.startsWith('http')) ? 'checked' : '' %>>
+          <span>Tải tệp tin lên</span>
+        </label>
+        <label class="inline-flex items-center gap-2 cursor-pointer text-sm text-slate-700 dark:text-slate-300">
+          <input type="radio" name="source_type" value="link" id="source-type-link" class="h-4 w-4 text-brand-600 focus:ring-brand-500 border-slate-300 dark:border-slate-600 bg-transparent" <%= (doc && doc.stored_filename.startsWith('http')) ? 'checked' : '' %>>
+          <span>Đường dẫn liên kết (URL)</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Drag Drop Zone / Link Input -->
     <div class="grid gap-4 sm:grid-cols-2">
       <!-- D&D document -->
-      <div>
+      <div id="file-source-container">
         <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">File tài liệu <%= doc ? '(để trống nếu giữ nguyên)' : '*' %></label>
-        <div id="drop-zone-source" class="relative group flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-700/30 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer transition-all duration-300">
-          <div class="flex flex-col items-center justify-center pt-5 pb-6 pointer-events-none text-center px-4">
+        <div id="drop-zone-source" class="relative group flex flex-col items-center justify-center w-full h-36 border-2 border-dashed <%= doc && !doc.stored_filename.startsWith('http') ? 'border-emerald-500 bg-emerald-50/20 dark:bg-emerald-950/10' : 'border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/30' %> rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer transition-all duration-300">
+          
+          <!-- Default State (no file) -->
+          <div id="default-state-source" class="flex flex-col items-center justify-center pt-5 pb-6 text-center px-4 <%= doc && !doc.stored_filename.startsWith('http') ? 'hidden' : '' %>">
             <svg class="w-8 h-8 mb-2 text-slate-400 group-hover:text-brand-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
             <p class="mb-1 text-sm text-slate-500 dark:text-slate-400"><span class="font-semibold text-brand-600 dark:text-brand-400">Chọn file</span> hoặc thả vào đây</p>
-            <p class="text-xs text-slate-400 truncate max-w-full" id="file-name-source"><%= doc ? 'Đang có: ' + doc.original_filename : 'MP4, PDF, Office, Ảnh...' %></p>
+            <p class="text-xs text-slate-400 truncate max-w-full">MP4, PDF, Office, Ảnh...</p>
           </div>
-          <input required id="file-input-source" type="file" name="file" class="hidden block w-full h-full absolute inset-0 cursor-pointer opacity-0" <%= doc ? 'disabled' : '' %> />
+          
+          <!-- Selected/Existing State -->
+          <div id="selected-state-source" class="flex flex-col items-center justify-center pt-4 pb-4 text-center px-4 w-full h-full <%= doc && !doc.stored_filename.startsWith('http') ? '' : 'hidden' %>">
+            <div class="flex items-center gap-3 bg-white dark:bg-slate-800 border border-emerald-200 dark:border-emerald-800/50 rounded-lg p-3 w-full shadow-sm max-w-md relative z-10">
+              <div class="p-2.5 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 rounded-lg shrink-0" id="file-icon-source">
+                <!-- SVG Icon will be inserted here dynamically -->
+              </div>
+              <div class="flex-1 min-w-0 text-left">
+                <p class="text-sm font-semibold text-slate-700 dark:text-slate-200 truncate" id="file-title-source"><%= doc && !doc.stored_filename.startsWith('http') ? doc.original_filename : '' %></p>
+                <p class="text-xs text-slate-400" id="file-size-source"><%= doc && !doc.stored_filename.startsWith('http') ? 'Đang hoạt động' : '' %></p>
+              </div>
+              <div class="text-emerald-500 shrink-0">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
+              </div>
+            </div>
+            <p class="text-xs text-brand-600 dark:text-brand-400 mt-2 font-medium group-hover:underline">Click hoặc kéo thả để đổi file khác</p>
+          </div>
+
+          <input <%= doc && !doc.stored_filename.startsWith('http') ? '' : 'required' %> id="file-input-source" type="file" name="file" class="hidden block w-full h-full absolute inset-0 cursor-pointer opacity-0" />
+        </div>
+      </div>
+
+      <!-- Link input (mutually exclusive with D&D document) -->
+      <div id="link-input-container" class="hidden flex flex-col h-full justify-between">
+        <div>
+          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Đường dẫn liên kết (URL) <%= doc ? '' : '*' %></label>
+          <div class="relative rounded-xl border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/30 p-3 h-36 flex flex-col justify-center transition-all duration-300 hover:bg-slate-100 dark:hover:bg-slate-700">
+            <input id="link-input" type="url" name="file_url" value="<%= (doc && doc.stored_filename.startsWith('http')) ? doc.stored_filename : '' %>" class="w-full rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 dark:text-white px-3 py-2 text-sm transition-all focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500" placeholder="https://example.com/tai-lieu.pdf hoặc Google Drive URL..." />
+            <p class="text-xs text-slate-400 dark:text-slate-400 mt-2">Nhập link ngoài để mở trực tiếp trong ứng dụng mà không cần upload file.</p>
+          </div>
         </div>
       </div>
 
       <!-- D&D banner -->
       <div>
         <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Ảnh đại diện (tuỳ chọn)</label>
-        <div id="drop-zone-banner" class="relative group flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-700/30 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer transition-all duration-300">
-          <div class="flex flex-col items-center justify-center pt-5 pb-6 pointer-events-none text-center px-4">
+        <div id="drop-zone-banner" class="relative group flex flex-col items-center justify-center w-full h-36 border-2 border-dashed <%= doc && doc.banner_filename ? 'border-amber-500 bg-amber-50/20 dark:bg-amber-950/10' : 'border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/30' %> rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer transition-all duration-300 overflow-hidden">
+          
+          <!-- Default State -->
+          <div id="default-state-banner" class="flex flex-col items-center justify-center pt-5 pb-6 text-center px-4 <%= doc && doc.banner_filename ? 'hidden' : '' %>">
             <svg class="w-8 h-8 mb-2 text-slate-400 group-hover:text-amber-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
             <p class="mb-1 text-sm text-slate-500 dark:text-slate-400"><span class="font-semibold text-amber-600 dark:text-amber-400">Tải ảnh lên</span> hoặc kéo thả</p>
-            <p class="text-xs text-slate-400 truncate max-w-full" id="file-name-banner"><%= doc && doc.banner_filename ? 'Giữ nguyên ảnh cũ' : 'JPG, PNG, GIF...' %></p>
+            <p class="text-xs text-slate-400 truncate max-w-full">JPG, PNG, GIF...</p>
           </div>
+          
+          <!-- Selected/Existing State -->
+          <div id="selected-state-banner" class="relative w-full h-full flex items-center justify-center <%= doc && doc.banner_filename ? '' : 'hidden' %>">
+            <!-- Image preview element -->
+            <img id="image-preview-banner" src="<%= doc && doc.banner_filename ? '/uploads/' + doc.banner_filename : '' %>" class="absolute inset-0 w-full h-full object-cover filter brightness-50 dark:brightness-40 transition-all duration-300" />
+            <!-- Overlay Info -->
+            <div class="relative z-10 flex flex-col items-center text-center px-4">
+              <svg class="w-6 h-6 text-amber-400 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+              <p class="text-xs font-semibold text-white truncate max-w-xs" id="image-name-banner"><%= doc && doc.banner_filename ? 'Ảnh hiện tại' : '' %></p>
+              <p class="text-[10px] text-slate-300" id="image-size-banner">Hoạt động</p>
+              <p class="text-xs text-amber-400 mt-1 font-semibold group-hover:underline">Click hoặc kéo thả để đổi ảnh khác</p>
+            </div>
+          </div>
+
           <input id="file-input-banner" accept="image/*" type="file" name="banner" class="hidden block w-full h-full absolute inset-0 cursor-pointer opacity-0" />
         </div>
       </div>
@@ -120,44 +192,132 @@
   cbs.forEach(function (c) { c.addEventListener('change', syncAll); });
   syncAll();
 
-  // Kéo Thả (Drag & Drop) & Progress Bar Logic
-  function bindDropZone(zoneId, inputId, nameId) {
+  // Hàm sinh mã icon dựa vào phần mở rộng tệp tin
+  function getFileIconSvg(fileName) {
+    if (!fileName) return '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>';
+    var ext = fileName.split('.').pop().toLowerCase();
+    if (ext === 'pdf') {
+      return '<svg class="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>';
+    } else if (['xls', 'xlsx'].indexOf(ext) !== -1) {
+      return '<svg class="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 00-2-2V5a2 2 0 002-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 00-2 2z"></path></svg>';
+    } else if (['doc', 'docx'].indexOf(ext) !== -1) {
+      return '<svg class="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>';
+    } else if (['mp4', 'mkv', 'avi', 'mov', 'mp3', 'wav'].indexOf(ext) !== -1) {
+      return '<svg class="w-6 h-6 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>';
+    } else if (['jpg', 'jpeg', 'png', 'gif', 'webp'].indexOf(ext) !== -1) {
+      return '<svg class="w-6 h-6 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>';
+    } else {
+      return '<svg class="w-6 h-6 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>';
+    }
+  }
+
+  // Khởi tạo icon ban đầu nếu đang sửa tài liệu
+  var existingSourceTitle = document.getElementById('file-title-source');
+  if (existingSourceTitle && existingSourceTitle.textContent) {
+    var iconSourceEl = document.getElementById('file-icon-source');
+    if (iconSourceEl) {
+      iconSourceEl.innerHTML = getFileIconSvg(existingSourceTitle.textContent);
+    }
+  }
+
+  // Kéo Thả (Drag & Drop) & Click Chọn File & Progress Bar Logic
+  function bindDropZone(zoneId, inputId, defaultStateId, selectedStateId, updateFn) {
     var zone = document.getElementById(zoneId);
     var input = document.getElementById(inputId);
-    var nameEl = document.getElementById(nameId);
+    var defaultState = document.getElementById(defaultStateId);
+    var selectedState = document.getElementById(selectedStateId);
     
+    // Thêm sự kiện click cho drop zone để mở hộp thoại chọn file
+    zone.addEventListener('click', function(e) {
+      input.click();
+    });
+
+    // Ngăn chặn sự kiện click nổi bọt để tránh lặp vô hạn khi input.click() được gọi
+    input.addEventListener('click', function(e) {
+      e.stopPropagation();
+    });
+
     input.addEventListener('change', function(e) {
       if (input.files.length > 0) {
-        nameEl.textContent = "Đã chọn: " + input.files[0].name;
-        zone.classList.add('border-brand-500', 'bg-brand-50');
-        zone.classList.remove('border-slate-300', 'bg-slate-50');
-        input.removeAttribute('disabled');
+        var file = input.files[0];
+        
+        // Gọi callback cập nhật giao diện hiển thị
+        updateFn(file);
+
+        defaultState.classList.add('hidden');
+        selectedState.classList.remove('hidden');
       }
     });
 
     zone.addEventListener('dragover', function(e) {
       e.preventDefault();
-      zone.classList.add('border-brand-500', 'bg-brand-50');
+      if (zoneId === 'drop-zone-source') {
+        zone.classList.add('border-emerald-500', 'bg-emerald-50/10');
+      } else {
+        zone.classList.add('border-amber-500', 'bg-amber-50/10');
+      }
     });
     
     zone.addEventListener('dragleave', function(e) {
       e.preventDefault();
-      if(!input.files.length) zone.classList.remove('border-brand-500', 'bg-brand-50');
+      // Nếu không có file được chọn thì khôi phục lại border mặc định
+      if(!input.files.length) {
+        if (zoneId === 'drop-zone-source') {
+          zone.classList.remove('border-emerald-500', 'bg-emerald-50/10');
+          if (!defaultState.classList.contains('hidden')) {
+            zone.classList.add('border-slate-300', 'bg-slate-50');
+          }
+        } else {
+          zone.classList.remove('border-amber-500', 'bg-amber-50/10');
+          if (!defaultState.classList.contains('hidden')) {
+            zone.classList.add('border-slate-300', 'bg-slate-50');
+          }
+        }
+      }
     });
 
     zone.addEventListener('drop', function(e) {
       e.preventDefault();
       if (e.dataTransfer.files.length) {
         input.files = e.dataTransfer.files;
-        input.removeAttribute('disabled');
         var event = new Event('change');
         input.dispatchEvent(event);
       }
     });
   }
 
-  bindDropZone('drop-zone-source', 'file-input-source', 'file-name-source');
-  bindDropZone('drop-zone-banner', 'file-input-banner', 'file-name-banner');
+  // Khởi tạo cho file tài liệu
+  bindDropZone('drop-zone-source', 'file-input-source', 'default-state-source', 'selected-state-source', function(file) {
+    var fileTitle = document.getElementById('file-title-source');
+    var fileSize = document.getElementById('file-size-source');
+    var fileIcon = document.getElementById('file-icon-source');
+    var zone = document.getElementById('drop-zone-source');
+
+    fileTitle.textContent = file.name;
+    fileSize.textContent = (file.size / 1024).toFixed(1) + ' KB';
+    fileIcon.innerHTML = getFileIconSvg(file.name);
+
+    zone.className = "relative group flex flex-col items-center justify-center w-full h-36 border-2 border-dashed border-emerald-500 bg-emerald-50/20 dark:bg-emerald-950/10 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer transition-all duration-300";
+  });
+
+  // Khởi tạo cho ảnh đại diện
+  bindDropZone('drop-zone-banner', 'file-input-banner', 'default-state-banner', 'selected-state-banner', function(file) {
+    var imgPreview = document.getElementById('image-preview-banner');
+    var imgName = document.getElementById('image-name-banner');
+    var imgSize = document.getElementById('image-size-banner');
+    var zone = document.getElementById('drop-zone-banner');
+
+    imgName.textContent = file.name;
+    imgSize.textContent = (file.size / 1024).toFixed(1) + ' KB';
+
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      imgPreview.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+
+    zone.className = "relative group flex flex-col items-center justify-center w-full h-36 border-2 border-dashed border-amber-500 bg-amber-50/20 dark:bg-amber-950/10 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer transition-all duration-300 overflow-hidden";
+  });
 
   // Intercept Form Submit bằng AJAX để lấy Progress Bar
   var form = document.getElementById('docForm');
@@ -207,6 +367,108 @@
     };
     xhr.send(formData);
   });
+
+  // Logic Chọn Tags hiện có
+  (function() {
+    var tagsInput = document.getElementById('tags-input');
+    if (!tagsInput) return;
+
+    var badges = document.querySelectorAll('.tag-badge');
+
+    // Phân tích chuỗi input thành mảng tag viết thường
+    function getSelectedTags() {
+      return tagsInput.value.split(',')
+        .map(function(t) { return t.trim().toLowerCase(); })
+        .filter(Boolean);
+    }
+
+    // Cập nhật trạng thái hiển thị (active/inactive) của các badge
+    function updateBadgeStates() {
+      var currentTags = getSelectedTags();
+      badges.forEach(function(badge) {
+        var tagVal = badge.getAttribute('data-tag').toLowerCase();
+        if (currentTags.indexOf(tagVal) !== -1) {
+          // Trạng thái đã chọn (Active)
+          badge.classList.remove('bg-slate-100', 'dark:bg-slate-700', 'text-slate-700', 'dark:text-slate-300', 'border-slate-200', 'dark:border-slate-600');
+          badge.classList.add('bg-brand-50', 'dark:bg-brand-950/40', 'text-brand-600', 'dark:text-brand-400', 'border-brand-200', 'dark:border-brand-800/80', 'font-medium');
+        } else {
+          // Trạng thái chưa chọn (Inactive)
+          badge.classList.add('bg-slate-100', 'dark:bg-slate-700', 'text-slate-700', 'dark:text-slate-300', 'border-slate-200', 'dark:border-slate-600');
+          badge.classList.remove('bg-brand-50', 'dark:bg-brand-950/40', 'text-brand-600', 'dark:text-brand-400', 'border-brand-200', 'dark:border-brand-800/80', 'font-medium');
+        }
+      });
+    }
+
+    // Lắng nghe click vào badge
+    badges.forEach(function(badge) {
+      badge.addEventListener('click', function() {
+        var tagVal = badge.getAttribute('data-tag');
+        var currentTags = getSelectedTags();
+        var idx = currentTags.indexOf(tagVal.toLowerCase());
+        
+        if (idx !== -1) {
+          // Đã chọn -> Bỏ chọn
+          currentTags.splice(idx, 1);
+        } else {
+          // Chưa chọn -> Thêm vào danh sách
+          currentTags.push(tagVal);
+        }
+        
+        tagsInput.value = currentTags.join(', ');
+        updateBadgeStates();
+      });
+    });
+
+    // Lắng nghe thay đổi gõ phím trực tiếp của người dùng
+    tagsInput.addEventListener('input', updateBadgeStates);
+
+    // Khởi chạy đồng bộ trạng thái ban đầu
+    updateBadgeStates();
+  })();
+
+  // Logic chuyển đổi chế độ File / Link ngoài
+  (function() {
+    var radioFile = document.getElementById('source-type-file');
+    var radioLink = document.getElementById('source-type-link');
+    var fileContainer = document.getElementById('file-source-container');
+    var linkContainer = document.getElementById('link-input-container');
+    var fileInput = document.getElementById('file-input-source');
+    var linkInput = document.getElementById('link-input');
+
+    var isEdit = <%= doc ? 'true' : 'false' %>;
+
+    function updateSourceFields() {
+      if (radioFile.checked) {
+        fileContainer.classList.remove('hidden');
+        linkContainer.classList.add('hidden');
+        
+        linkInput.removeAttribute('required');
+        linkInput.disabled = true;
+        
+        fileInput.disabled = false;
+        if (!isEdit) {
+          fileInput.setAttribute('required', 'required');
+        }
+      } else {
+        fileContainer.classList.add('hidden');
+        linkContainer.classList.remove('hidden');
+        
+        fileInput.removeAttribute('required');
+        fileInput.disabled = true;
+        
+        linkInput.disabled = false;
+        if (!isEdit) {
+          linkInput.setAttribute('required', 'required');
+        }
+      }
+    }
+
+    if (radioFile && radioLink) {
+      radioFile.addEventListener('change', updateSourceFields);
+      radioLink.addEventListener('change', updateSourceFields);
+      updateSourceFields();
+    }
+  })();
 })();
 </script>
 <%- include('../partials/footer') %>

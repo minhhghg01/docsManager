@@ -302,10 +302,12 @@ router.get('/documents', (req, res) => {
 
 router.get('/documents/new', (req, res) => {
   const departments = db.prepare('SELECT * FROM departments ORDER BY name').all();
+  const tags = db.prepare('SELECT DISTINCT tag FROM document_tags ORDER BY tag').all().map(t => t.tag);
   res.render('admin/document-form', {
     title: 'Thêm tài liệu',
     doc: null,
     departments,
+    tags,
     error: null
   });
 });
@@ -317,34 +319,58 @@ const uploadFields = upload.fields([
 
 router.post('/documents', uploadFields, (req, res) => {
     const departments = db.prepare('SELECT * FROM departments ORDER BY name').all();
-    const { title, source_label, is_public, owner_khoa_id } = req.body;
+    const tags = db.prepare('SELECT DISTINCT tag FROM document_tags ORDER BY tag').all().map(t => t.tag);
+    const { title, source_label, is_public, owner_khoa_id, source_type, file_url } = req.body;
     const mainFile = req.files?.file?.[0];
     const bannerFile = req.files?.banner?.[0];
-    if (!mainFile) {
+
+    const isLinkType = source_type === 'link';
+
+    if (!isLinkType && !mainFile) {
       if (bannerFile) fs.unlinkSync(bannerFile.path);
       return res.render('admin/document-form', {
         title: 'Thêm tài liệu',
         doc: null,
         departments,
+        tags,
         error: 'Cần chọn file.'
       });
     }
-    if (!title?.trim() || !source_label?.trim()) {
-      fs.unlinkSync(mainFile.path);
+
+    if (isLinkType && !file_url?.trim()) {
       if (bannerFile) fs.unlinkSync(bannerFile.path);
       return res.render('admin/document-form', {
         title: 'Thêm tài liệu',
         doc: null,
         departments,
+        tags,
+        error: 'Cần nhập đường dẫn liên kết (URL).'
+      });
+    }
+
+    if (!title?.trim() || !source_label?.trim()) {
+      if (mainFile) fs.unlinkSync(mainFile.path);
+      if (bannerFile) fs.unlinkSync(bannerFile.path);
+      return res.render('admin/document-form', {
+        title: 'Thêm tài liệu',
+        doc: null,
+        departments,
+        tags,
         error: 'Tiêu đề và nguồn không được để trống.'
       });
     }
+
     const pub = is_public === '1' || is_public === 'on' ? 1 : 0;
     const owner =
       owner_khoa_id && String(owner_khoa_id).trim()
         ? parseInt(owner_khoa_id, 10)
         : null;
     const bannerFn = bannerFile ? bannerFile.filename : null;
+
+    const storedFilename = isLinkType ? file_url.trim() : mainFile.filename;
+    const originalFilename = isLinkType ? file_url.trim() : mainFile.originalname;
+    const mimeType = isLinkType ? 'text/html' : (mainFile.mimetype || null);
+
     const info = db
       .prepare(
         `INSERT INTO documents (
@@ -355,9 +381,9 @@ router.post('/documents', uploadFields, (req, res) => {
       .run(
         title.trim(),
         source_label.trim(),
-        mainFile.filename,
-        mainFile.originalname,
-        mainFile.mimetype || null,
+        storedFilename,
+        originalFilename,
+        mimeType,
         pub,
         owner,
         req.user.id,
@@ -373,8 +399,10 @@ router.post('/documents', uploadFields, (req, res) => {
     }
     saveTags(docId, parseTags(req.body));
     
-    // Khởi chạy ngầm hàm tóm tắt ngay sau khi upload
-    autoSummarizeInBackground(docId, mainFile.filename, mainFile.originalname, title.trim());
+    // Khởi chạy ngầm hàm tóm tắt ngay sau khi upload (chỉ áp dụng nếu là tệp cục bộ)
+    if (!isLinkType) {
+      autoSummarizeInBackground(docId, mainFile.filename, mainFile.originalname, title.trim());
+    }
 
     res.redirect('/admin/documents');
   }
@@ -386,10 +414,12 @@ router.get('/documents/:id/edit', (req, res) => {
   if (!row) return res.redirect('/admin/documents');
   const doc = documentWithShares(db, row);
   const departments = db.prepare('SELECT * FROM departments ORDER BY name').all();
+  const tags = db.prepare('SELECT DISTINCT tag FROM document_tags ORDER BY tag').all().map(t => t.tag);
   res.render('admin/document-form', {
     title: 'Sửa tài liệu',
     doc,
     departments,
+    tags,
     error: null
   });
 });
@@ -400,18 +430,53 @@ router.post('/documents/:id', uploadFields, (req, res) => {
     if (!row) return res.redirect('/admin/documents');
 
     const departments = db.prepare('SELECT * FROM departments ORDER BY name').all();
-    const { title, source_label, is_public, owner_khoa_id } = req.body;
+    const tags = db.prepare('SELECT DISTINCT tag FROM document_tags ORDER BY tag').all().map(t => t.tag);
+    const { title, source_label, is_public, owner_khoa_id, source_type, file_url } = req.body;
     const mainFile = req.files?.file?.[0];
     const bannerFile = req.files?.banner?.[0];
+
+    const isLinkType = source_type === 'link';
+
     if (!title?.trim() || !source_label?.trim()) {
+      if (mainFile) fs.unlinkSync(mainFile.path);
+      if (bannerFile) fs.unlinkSync(bannerFile.path);
       const doc = documentWithShares(db, row);
       return res.render('admin/document-form', {
         title: 'Sửa tài liệu',
         doc,
         departments,
+        tags,
         error: 'Tiêu đề và nguồn không được để trống.'
       });
     }
+
+    if (isLinkType && !file_url?.trim()) {
+      if (mainFile) fs.unlinkSync(mainFile.path);
+      if (bannerFile) fs.unlinkSync(bannerFile.path);
+      const doc = documentWithShares(db, row);
+      return res.render('admin/document-form', {
+        title: 'Sửa tài liệu',
+        doc,
+        departments,
+        tags,
+        error: 'Cần nhập đường dẫn liên kết (URL).'
+      });
+    }
+
+    // Nếu chọn kiểu File nhưng lại không upload file mới, và file cũ lại là dạng Link (bắt buộc phải tải file mới)
+    const prevIsLink = row.stored_filename.startsWith('http');
+    if (!isLinkType && !mainFile && prevIsLink) {
+      if (bannerFile) fs.unlinkSync(bannerFile.path);
+      const doc = documentWithShares(db, row);
+      return res.render('admin/document-form', {
+        title: 'Sửa tài liệu',
+        doc,
+        departments,
+        tags,
+        error: 'Bạn đã chuyển sang chế độ tải tệp tin, cần chọn file tải lên.'
+      });
+    }
+
     const pub = is_public === '1' || is_public === 'on' ? 1 : 0;
     const owner =
       owner_khoa_id && String(owner_khoa_id).trim()
@@ -424,15 +489,39 @@ router.post('/documents/:id', uploadFields, (req, res) => {
     let clearPdf = false;
     let bannerFn = row.banner_filename || null;
 
-    if (mainFile) {
-      const oldPath = path.join(UPLOAD_ROOT, row.stored_filename);
-      if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
-      if (row.pdf_cache_filename) {
-        const cachePath = path.join(PDF_CACHE, row.pdf_cache_filename);
-        if (fs.existsSync(cachePath)) fs.unlinkSync(cachePath);
-        const cacheDir = path.join(PDF_CACHE, String(id));
-        if (fs.existsSync(cacheDir)) {
-          fs.rmSync(cacheDir, { recursive: true, force: true });
+    if (isLinkType) {
+      const newUrl = file_url.trim();
+      if (newUrl !== row.stored_filename) {
+        // Nếu trước đó là tệp tin cục bộ, xóa tệp tin cục bộ và cache
+        if (!prevIsLink) {
+          const oldPath = path.join(UPLOAD_ROOT, row.stored_filename);
+          if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+          if (row.pdf_cache_filename) {
+            const cachePath = path.join(PDF_CACHE, row.pdf_cache_filename);
+            if (fs.existsSync(cachePath)) fs.unlinkSync(cachePath);
+            const cacheDir = path.join(PDF_CACHE, String(id));
+            if (fs.existsSync(cacheDir)) {
+              fs.rmSync(cacheDir, { recursive: true, force: true });
+            }
+          }
+        }
+        stored = newUrl;
+        original = newUrl;
+        mime = 'text/html';
+        clearPdf = true;
+      }
+    } else if (mainFile) {
+      // Nếu trước đó là tệp tin cục bộ, xóa tệp tin cũ
+      if (!prevIsLink) {
+        const oldPath = path.join(UPLOAD_ROOT, row.stored_filename);
+        if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+        if (row.pdf_cache_filename) {
+          const cachePath = path.join(PDF_CACHE, row.pdf_cache_filename);
+          if (fs.existsSync(cachePath)) fs.unlinkSync(cachePath);
+          const cacheDir = path.join(PDF_CACHE, String(id));
+          if (fs.existsSync(cacheDir)) {
+            fs.rmSync(cacheDir, { recursive: true, force: true });
+          }
         }
       }
       stored = mainFile.filename;
@@ -459,8 +548,10 @@ router.post('/documents/:id', uploadFields, (req, res) => {
         WHERE id = ?`
       ).run(title.trim(), source_label.trim(), stored, original, mime, pub, owner, bannerFn, id);
       
-      // Chạy ngầm AI tóm tắt lại vì file mới đã được thay thế
-      autoSummarizeInBackground(id, stored, original, title.trim());
+      // Chạy ngầm AI tóm tắt lại vì file mới đã được thay thế (chỉ cho file cục bộ)
+      if (!isLinkType && mainFile) {
+        autoSummarizeInBackground(id, stored, original, title.trim());
+      }
     } else {
       db.prepare(
         `UPDATE documents SET
