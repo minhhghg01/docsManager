@@ -97,22 +97,24 @@
           
           <!-- Selected/Existing State -->
           <div id="selected-state-source" class="flex flex-col items-center justify-center pt-4 pb-4 text-center px-4 w-full h-full <%= doc && !doc.stored_filename.startsWith('http') ? '' : 'hidden' %>">
-            <div class="flex items-center gap-3 bg-white dark:bg-slate-800 border border-emerald-200 dark:border-emerald-800/50 rounded-lg p-3 w-full shadow-sm max-w-md relative z-10">
-              <div class="p-2.5 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 rounded-lg shrink-0" id="file-icon-source">
-                <!-- SVG Icon will be inserted here dynamically -->
-              </div>
-              <div class="flex-1 min-w-0 text-left">
-                <p class="text-sm font-semibold text-slate-700 dark:text-slate-200 truncate" id="file-title-source"><%= doc && !doc.stored_filename.startsWith('http') ? doc.original_filename : '' %></p>
-                <p class="text-xs text-slate-400" id="file-size-source"><%= doc && !doc.stored_filename.startsWith('http') ? 'Đang hoạt động' : '' %></p>
-              </div>
-              <div class="text-emerald-500 shrink-0">
-                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
+            <div id="files-list-container" class="w-full max-h-24 overflow-y-auto space-y-2 mb-2 pr-1 z-10">
+              <div class="flex items-center gap-3 bg-white dark:bg-slate-800 border border-emerald-200 dark:border-emerald-800/50 rounded-lg p-3 w-full shadow-sm max-w-md mx-auto relative z-10">
+                <div class="p-2.5 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 rounded-lg shrink-0" id="file-icon-source">
+                  <!-- SVG Icon will be inserted here dynamically -->
+                </div>
+                <div class="flex-1 min-w-0 text-left">
+                  <p class="text-sm font-semibold text-slate-700 dark:text-slate-200 truncate" id="file-title-source"><%= doc && !doc.stored_filename.startsWith('http') ? doc.original_filename : '' %></p>
+                  <p class="text-xs text-slate-400" id="file-size-source"><%= doc && !doc.stored_filename.startsWith('http') ? 'Đang hoạt động' : '' %></p>
+                </div>
+                <div class="text-emerald-500 shrink-0">
+                  <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
+                </div>
               </div>
             </div>
-            <p class="text-xs text-brand-600 dark:text-brand-400 mt-2 font-medium group-hover:underline">Click hoặc kéo thả để đổi file khác</p>
+            <p class="text-xs text-brand-600 dark:text-brand-400 mt-1 font-medium group-hover:underline">Click hoặc kéo thả để đổi file khác</p>
           </div>
 
-          <input <%= doc && !doc.stored_filename.startsWith('http') ? '' : 'required' %> id="file-input-source" type="file" name="file" class="hidden block w-full h-full absolute inset-0 cursor-pointer opacity-0" />
+          <input <%= doc && !doc.stored_filename.startsWith('http') ? '' : 'required' %> id="file-input-source" type="file" name="file" <%= doc ? '' : 'multiple' %> class="hidden block w-full h-full absolute inset-0 cursor-pointer opacity-0" />
         </div>
       </div>
 
@@ -220,6 +222,69 @@
     }
   }
 
+  // Quét đệ quy thư mục và file khi kéo thả
+  function getFilesFromDataTransfer(dataTransfer, callback) {
+    var files = [];
+    var items = dataTransfer.items;
+    var pending = 0;
+
+    function traverse(item) {
+      if (item.isFile) {
+        pending++;
+        item.file(function(file) {
+          files.push(file);
+          pending--;
+          checkComplete();
+        }, function(err) {
+          pending--;
+          checkComplete();
+        });
+      } else if (item.isDirectory) {
+        pending++;
+        var reader = item.createReader();
+        var readAllEntries = function() {
+          reader.readEntries(function(entries) {
+            if (entries.length > 0) {
+              pending += entries.length;
+              entries.forEach(traverse);
+              pending--;
+              readAllEntries();
+            } else {
+              pending--;
+              checkComplete();
+            }
+          }, function(err) {
+            pending--;
+            checkComplete();
+          });
+        };
+        readAllEntries();
+      }
+    }
+
+    function checkComplete() {
+      if (pending === 0) {
+        callback(files);
+      }
+    }
+
+    if (items && items.length > 0) {
+      var foundEntry = false;
+      for (var i = 0; i < items.length; i++) {
+        var entry = items[i].webkitGetAsEntry ? items[i].webkitGetAsEntry() : null;
+        if (entry) {
+          foundEntry = true;
+          traverse(entry);
+        }
+      }
+      if (!foundEntry) {
+        callback(Array.from(dataTransfer.files));
+      }
+    } else {
+      callback(Array.from(dataTransfer.files));
+    }
+  }
+
   // Kéo Thả (Drag & Drop) & Click Chọn File & Progress Bar Logic
   function bindDropZone(zoneId, inputId, defaultStateId, selectedStateId, updateFn) {
     var zone = document.getElementById(zoneId);
@@ -239,10 +304,8 @@
 
     input.addEventListener('change', function(e) {
       if (input.files.length > 0) {
-        var file = input.files[0];
-        
         // Gọi callback cập nhật giao diện hiển thị
-        updateFn(file);
+        updateFn(input.files);
 
         defaultState.classList.add('hidden');
         selectedState.classList.remove('hidden');
@@ -278,30 +341,60 @@
 
     zone.addEventListener('drop', function(e) {
       e.preventDefault();
-      if (e.dataTransfer.files.length) {
-        input.files = e.dataTransfer.files;
-        var event = new Event('change');
-        input.dispatchEvent(event);
+      if (zoneId === 'drop-zone-source' && input.multiple) {
+        getFilesFromDataTransfer(e.dataTransfer, function(files) {
+          if (files.length > 0) {
+            var dt = new DataTransfer();
+            files.forEach(function(file) {
+              dt.items.add(file);
+            });
+            input.files = dt.files;
+            var event = new Event('change');
+            input.dispatchEvent(event);
+          }
+        });
+      } else {
+        if (e.dataTransfer.files.length) {
+          input.files = e.dataTransfer.files;
+          var event = new Event('change');
+          input.dispatchEvent(event);
+        }
       }
     });
   }
 
   // Khởi tạo cho file tài liệu
-  bindDropZone('drop-zone-source', 'file-input-source', 'default-state-source', 'selected-state-source', function(file) {
-    var fileTitle = document.getElementById('file-title-source');
-    var fileSize = document.getElementById('file-size-source');
-    var fileIcon = document.getElementById('file-icon-source');
+  bindDropZone('drop-zone-source', 'file-input-source', 'default-state-source', 'selected-state-source', function(filesList) {
+    var container = document.getElementById('files-list-container');
     var zone = document.getElementById('drop-zone-source');
 
-    fileTitle.textContent = file.name;
-    fileSize.textContent = (file.size / 1024).toFixed(1) + ' KB';
-    fileIcon.innerHTML = getFileIconSvg(file.name);
+    container.innerHTML = '';
+    var filesArray = Array.from(filesList);
+
+    filesArray.forEach(function(file) {
+      var card = document.createElement('div');
+      card.className = "flex items-center gap-3 bg-white dark:bg-slate-800 border border-emerald-200 dark:border-emerald-800/50 rounded-lg p-2.5 w-full shadow-sm max-w-md mx-auto relative z-10 mb-2";
+      card.innerHTML = `
+        <div class="p-2 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 rounded-lg shrink-0">
+          ${getFileIconSvg(file.name)}
+        </div>
+        <div class="flex-1 min-w-0 text-left">
+          <p class="text-xs font-semibold text-slate-700 dark:text-slate-200 truncate" title="${file.name}">${file.name}</p>
+          <p class="text-[10px] text-slate-400">${(file.size / 1024).toFixed(1)} KB</p>
+        </div>
+        <div class="text-emerald-500 shrink-0">
+          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
+        </div>
+      `;
+      container.appendChild(card);
+    });
 
     zone.className = "relative group flex flex-col items-center justify-center w-full h-36 border-2 border-dashed border-emerald-500 bg-emerald-50/20 dark:bg-emerald-950/10 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer transition-all duration-300";
   });
 
   // Khởi tạo cho ảnh đại diện
-  bindDropZone('drop-zone-banner', 'file-input-banner', 'default-state-banner', 'selected-state-banner', function(file) {
+  bindDropZone('drop-zone-banner', 'file-input-banner', 'default-state-banner', 'selected-state-banner', function(filesList) {
+    var file = filesList[0];
     var imgPreview = document.getElementById('image-preview-banner');
     var imgName = document.getElementById('image-name-banner');
     var imgSize = document.getElementById('image-size-banner');

@@ -313,7 +313,7 @@ router.get('/documents/new', (req, res) => {
 });
 
 const uploadFields = upload.fields([
-  { name: 'file', maxCount: 1 },
+  { name: 'file', maxCount: 100 },
   { name: 'banner', maxCount: 1 }
 ]);
 
@@ -321,24 +321,34 @@ router.post('/documents', uploadFields, (req, res) => {
     const departments = db.prepare('SELECT * FROM departments ORDER BY name').all();
     const tags = db.prepare('SELECT DISTINCT tag FROM document_tags ORDER BY tag').all().map(t => t.tag);
     const { title, source_label, is_public, owner_khoa_id, source_type, file_url } = req.body;
-    const mainFile = req.files?.file?.[0];
+    const mainFiles = req.files?.file || [];
     const bannerFile = req.files?.banner?.[0];
 
     const isLinkType = source_type === 'link';
 
-    if (!isLinkType && !mainFile) {
-      if (bannerFile) fs.unlinkSync(bannerFile.path);
+    // Hàm tiện ích để xóa tất cả file tạm khi có lỗi
+    const cleanupUploadedFiles = () => {
+      mainFiles.forEach(f => {
+        if (fs.existsSync(f.path)) fs.unlinkSync(f.path);
+      });
+      if (bannerFile && fs.existsSync(bannerFile.path)) {
+        fs.unlinkSync(bannerFile.path);
+      }
+    };
+
+    if (!isLinkType && mainFiles.length === 0) {
+      cleanupUploadedFiles();
       return res.render('admin/document-form', {
         title: 'Thêm tài liệu',
         doc: null,
         departments,
         tags,
-        error: 'Cần chọn file.'
+        error: 'Cần chọn ít nhất một file.'
       });
     }
 
     if (isLinkType && !file_url?.trim()) {
-      if (bannerFile) fs.unlinkSync(bannerFile.path);
+      cleanupUploadedFiles();
       return res.render('admin/document-form', {
         title: 'Thêm tài liệu',
         doc: null,
@@ -348,15 +358,26 @@ router.post('/documents', uploadFields, (req, res) => {
       });
     }
 
-    if (!title?.trim() || !source_label?.trim()) {
-      if (mainFile) fs.unlinkSync(mainFile.path);
-      if (bannerFile) fs.unlinkSync(bannerFile.path);
+    // Nếu là dạng tệp tin hàng loạt, chúng ta không yêu cầu Tiêu đề bắt buộc từ form
+    // vì tiêu đề sẽ được lấy theo tên file. Nhưng nếu chỉ có 1 file hoặc là Link, Tiêu đề vẫn bắt buộc.
+    const isSingleDoc = isLinkType || mainFiles.length === 1;
+    if (isSingleDoc && (!title?.trim() || !source_label?.trim())) {
+      cleanupUploadedFiles();
       return res.render('admin/document-form', {
         title: 'Thêm tài liệu',
         doc: null,
         departments,
         tags,
         error: 'Tiêu đề và nguồn không được để trống.'
+      });
+    } else if (!isSingleDoc && !source_label?.trim()) {
+      cleanupUploadedFiles();
+      return res.render('admin/document-form', {
+        title: 'Thêm tài liệu',
+        doc: null,
+        departments,
+        tags,
+        error: 'Nguồn tài liệu không được để trống.'
       });
     }
 
@@ -367,41 +388,66 @@ router.post('/documents', uploadFields, (req, res) => {
         : null;
     const bannerFn = bannerFile ? bannerFile.filename : null;
 
-    const storedFilename = isLinkType ? file_url.trim() : mainFile.filename;
-    const originalFilename = isLinkType ? file_url.trim() : mainFile.originalname;
-    const mimeType = isLinkType ? 'text/html' : (mainFile.mimetype || null);
+    const docsToCreate = [];
+    if (isLinkType) {
+      docsToCreate.push({
+        title: title.trim(),
+        storedFilename: file_url.trim(),
+        originalFilename: file_url.trim(),
+        mimeType: 'text/html',
+        isLocalFile: false
+      });
+    } else {
+      mainFiles.forEach(file => {
+        // Tên file bỏ extension
+        const parsedName = path.parse(file.originalname).name;
+        // Nếu upload 1 file duy nhất, sử dụng tiêu đề từ form, ngược lại lấy tên file làm tiêu đề
+        const docTitle = mainFiles.length === 1 ? title.trim() : parsedName;
+        docsToCreate.push({
+          title: docTitle,
+          storedFilename: file.filename,
+          originalFilename: file.originalname,
+          mimeType: file.mimetype || null,
+          isLocalFile: true
+        });
+      });
+    }
 
-    const info = db
-      .prepare(
-        `INSERT INTO documents (
-          title, source_label, stored_filename, original_filename, mime_type,
-          is_public, owner_khoa_id, uploaded_by, updated_at, banner_filename
-        ) VALUES (?,?,?,?,?,?,?,?, datetime('now'), ?)`
-      )
-      .run(
-        title.trim(),
+    const insDoc = db.prepare(
+      `INSERT INTO documents (
+        title, source_label, stored_filename, original_filename, mime_type,
+        is_public, owner_khoa_id, uploaded_by, updated_at, banner_filename
+      ) VALUES (?,?,?,?,?,?,?,?, datetime('now'), ?)`
+    );
+
+    const insShare = db.prepare(
+      'INSERT OR IGNORE INTO document_shares (document_id, khoa_id) VALUES (?,?)'
+    );
+
+    for (const docInfo of docsToCreate) {
+      const info = insDoc.run(
+        docInfo.title,
         source_label.trim(),
-        storedFilename,
-        originalFilename,
-        mimeType,
+        docInfo.storedFilename,
+        docInfo.originalFilename,
+        docInfo.mimeType,
         pub,
         owner,
         req.user.id,
         bannerFn
       );
-    const docId = info.lastInsertRowid;
-    const shares = parseKhoaIds(req.body);
-    const insShare = db.prepare(
-      'INSERT OR IGNORE INTO document_shares (document_id, khoa_id) VALUES (?,?)'
-    );
-    for (const k of shares) {
-      if (k !== owner) insShare.run(docId, k);
-    }
-    saveTags(docId, parseTags(req.body));
-    
-    // Khởi chạy ngầm hàm tóm tắt ngay sau khi upload (chỉ áp dụng nếu là tệp cục bộ)
-    if (!isLinkType) {
-      autoSummarizeInBackground(docId, mainFile.filename, mainFile.originalname, title.trim());
+      const docId = info.lastInsertRowid;
+      
+      const shares = parseKhoaIds(req.body);
+      for (const k of shares) {
+        if (k !== owner) insShare.run(docId, k);
+      }
+      saveTags(docId, parseTags(req.body));
+      
+      // Chạy ngầm AI tóm tắt cho từng tệp cục bộ
+      if (docInfo.isLocalFile) {
+        autoSummarizeInBackground(docId, docInfo.storedFilename, docInfo.originalFilename, docInfo.title);
+      }
     }
 
     res.redirect('/admin/documents');
