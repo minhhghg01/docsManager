@@ -1,0 +1,246 @@
+<%- include('../partials/header') %>
+<div class="grid grid-cols-[auto_1fr_auto] items-center gap-3">
+  <div class="flex items-center gap-2">
+    <a href="/admin/dashboard" class="rounded p-1.5 text-brand-600 transition-all hover:bg-brand-50 hover:text-brand-800" title="Quản trị">
+      <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"/></svg>
+    </a>
+    <h1 class="text-2xl font-bold text-slate-800 dark:text-white">Nhật ký hoạt động hệ thống</h1>
+  </div>
+  <div class="flex justify-center" id="paginationNav">
+    <%- include('../partials/pagination', { pg, part: 'nav' }) %>
+  </div>
+  <div class="flex items-center gap-3" id="paginationInfo">
+    <%- include('../partials/pagination', { pg, part: 'info' }) %>
+  </div>
+</div>
+
+<!-- Thanh công cụ Grid Logs -->
+<div class="mt-4 flex justify-between items-center bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+  <span class="text-xs text-slate-500 dark:text-slate-400">Nhập từ khóa ngay dưới tiêu đề các cột để lọc kết hợp nhiều trường cùng lúc.</span>
+  <button type="button" id="btnResetFilters" class="rounded-md border border-slate-300 dark:border-slate-600 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition">Đặt lại bộ lọc</button>
+</div>
+
+<!-- Bảng hiển thị logs -->
+<form method="get" action="/admin/logs" id="logsFilterForm" class="contents">
+  <div id="logsTableContainer" class="mt-6 overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm transition-opacity duration-200">
+    <div class="overflow-x-auto">
+      <table class="w-full border-collapse text-left text-sm text-slate-500 dark:text-slate-400">
+        <thead class="bg-slate-50 dark:bg-slate-700/50 text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+          <tr>
+            <th scope="col" class="px-6 py-3">Thời gian</th>
+            <th scope="col" class="px-6 py-3">Tài khoản</th>
+            <th scope="col" class="px-6 py-3">Hành động</th>
+            <th scope="col" class="px-6 py-3">Chi tiết tài liệu</th>
+            <th scope="col" class="px-6 py-3">Địa chỉ IP</th>
+            <th scope="col" class="px-6 py-3">Thiết bị</th>
+          </tr>
+          <tr class="bg-slate-100/50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-700">
+            <td class="px-4 py-2">
+              <input type="text" name="filter_time" value="<%= filters.filter_time || '' %>" placeholder="Lọc thời gian..." class="w-full rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-2 py-1 text-xs text-slate-800 dark:text-white focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 font-medium" />
+            </td>
+            <td class="px-4 py-2">
+              <input type="text" name="filter_username" value="<%= filters.filter_username || '' %>" placeholder="Lọc tài khoản..." class="w-full rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-2 py-1 text-xs text-slate-800 dark:text-white focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 font-medium" />
+            </td>
+            <td class="px-4 py-2">
+              <select name="filter_action" class="w-full rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-2 py-1 text-xs text-slate-800 dark:text-white focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 font-medium">
+                <option value="">Tất cả</option>
+                <option value="LOGIN" <%= filters.filter_action === 'LOGIN' ? 'selected' : '' %>>LOGIN</option>
+                <option value="LOGOUT" <%= filters.filter_action === 'LOGOUT' ? 'selected' : '' %>>LOGOUT</option>
+                <option value="VIEW_DOC" <%= filters.filter_action === 'VIEW_DOC' ? 'selected' : '' %>>VIEW_DOC</option>
+                <option value="CREATE_DOC" <%= filters.filter_action === 'CREATE_DOC' ? 'selected' : '' %>>CREATE_DOC</option>
+                <option value="EDIT_DOC" <%= filters.filter_action === 'EDIT_DOC' ? 'selected' : '' %>>EDIT_DOC</option>
+                <option value="DELETE_DOC" <%= filters.filter_action === 'DELETE_DOC' ? 'selected' : '' %>>DELETE_DOC</option>
+              </select>
+            </td>
+            <td class="px-4 py-2">
+              <input type="text" name="filter_document" value="<%= filters.filter_document || '' %>" placeholder="Lọc tài liệu..." class="w-full rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-2 py-1 text-xs text-slate-800 dark:text-white focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 font-medium" />
+            </td>
+            <td class="px-4 py-2">
+              <input type="text" name="filter_ip" value="<%= filters.filter_ip || '' %>" placeholder="Lọc IP..." class="w-full rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-2 py-1 text-xs text-slate-800 dark:text-white focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 font-mono" />
+            </td>
+            <td class="px-4 py-2">
+              <input type="text" name="filter_device" value="<%= filters.filter_device || '' %>" placeholder="Lọc thiết bị..." class="w-full rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-2 py-1 text-xs text-slate-800 dark:text-white focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 font-medium" />
+            </td>
+          </tr>
+        </thead>
+        <tbody id="logsTableBody" class="divide-y divide-slate-200 dark:divide-slate-700">
+        <% if (logs.length === 0) { %>
+          <tr>
+            <td colspan="6" class="px-6 py-10 text-center text-slate-400">Không tìm thấy nhật ký nào phù hợp.</td>
+          </tr>
+        <% } %>
+        <% logs.forEach(function (log) { %>
+          <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
+            <!-- Thời gian -->
+            <td class="whitespace-nowrap px-6 py-4 font-medium text-slate-900 dark:text-white">
+              <%= log.created_at %>
+            </td>
+            <!-- Tài khoản -->
+            <td class="px-6 py-4">
+              <div class="flex items-center gap-2">
+                <div class="h-8 w-8 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center font-bold text-brand-600 dark:text-brand-400 select-none">
+                  <%= log.username ? log.username.substring(0, 2).toUpperCase() : 'G' %>
+                </div>
+                <span><%= log.username || 'Khách' %></span>
+              </div>
+            </td>
+            <!-- Hành động với Badge -->
+            <td class="px-6 py-4 whitespace-nowrap">
+              <% var badgeClass = 'bg-slate-100 text-slate-800 dark:bg-slate-700 dark:text-slate-300'; %>
+              <% if (log.action_type === 'LOGIN') { badgeClass = 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300'; } %>
+              <% if (log.action_type === 'LOGOUT') { badgeClass = 'bg-slate-100 text-slate-800 dark:bg-slate-700 dark:text-slate-300'; } %>
+              <% if (log.action_type === 'VIEW_DOC') { badgeClass = 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300'; } %>
+              <% if (log.action_type === 'CREATE_DOC') { badgeClass = 'bg-teal-100 text-teal-800 dark:bg-teal-900/50 dark:text-teal-300'; } %>
+              <% if (log.action_type === 'EDIT_DOC') { badgeClass = 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300'; } %>
+              <% if (log.action_type === 'DELETE_DOC') { badgeClass = 'bg-rose-100 text-rose-800 dark:bg-rose-900/50 dark:text-rose-300'; } %>
+              <span class="inline-flex items-center rounded-md px-2 py-1 text-xs font-semibold <%= badgeClass %>">
+                <%= log.action_type %>
+              </span>
+            </td>
+            <!-- Chi tiết tài liệu -->
+            <td class="px-6 py-4 max-w-xs truncate">
+              <% if (log.document_id || log.document_title) { %>
+                <div class="flex flex-col">
+                  <span class="font-semibold text-slate-800 dark:text-slate-200" title="<%= log.document_title %>">
+                    <%= log.document_title %>
+                  </span>
+                  <span class="text-xs text-slate-400">ID: <%= log.document_id || 'N/A' %></span>
+                </div>
+              <% } else { %>
+                <span class="text-slate-400">—</span>
+              <% } %>
+            </td>
+            <!-- IP -->
+            <td class="px-6 py-4 whitespace-nowrap font-mono text-xs">
+              <%= log.ip_address || 'Unknown' %>
+            </td>
+            <!-- Thiết bị sạch kèm biểu tượng (hover để xem chi tiết) -->
+            <td class="px-6 py-4 max-w-[220px] text-xs text-slate-700 dark:text-slate-300 font-medium" title="<%= log.user_agent %>">
+              <% if (log.cleanDevice && log.cleanDevice.deviceIcon) { %>
+                <div class="flex items-center gap-2">
+                  <span class="text-lg select-none" title="<%= log.cleanDevice.deviceName %>"><%= log.cleanDevice.deviceIcon %></span>
+                  <div class="flex flex-col truncate">
+                    <span class="font-semibold text-slate-800 dark:text-slate-200 truncate"><%= log.cleanDevice.deviceName %></span>
+                    <span class="text-[10px] text-slate-400 font-medium truncate"><%= log.cleanDevice.browser %> • <%= log.cleanDevice.os %></span>
+                  </div>
+                </div>
+              <% } else { %>
+                <span class="text-slate-400">Không rõ</span>
+              <% } %>
+            </td>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </div>
+</div>
+</form>
+
+<div class="mt-6 flex justify-center" id="paginationBottomNav">
+  <%- include('../partials/pagination', { pg, part: 'nav' }) %>
+</div>
+
+<script>
+  (function() {
+    const form = document.getElementById('logsFilterForm');
+    const btnReset = document.getElementById('btnResetFilters');
+
+    // Intercept form submit
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      updateLogs();
+    });
+
+    // Real-time search with debounce for text inputs
+    let debounceTimer;
+    form.addEventListener('input', function(e) {
+      if (e.target.tagName === 'INPUT') {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(updateLogs, 300);
+      }
+    });
+
+    // Instant filter on select change
+    form.addEventListener('change', function(e) {
+      if (e.target.tagName === 'SELECT') {
+        updateLogs();
+      }
+    });
+
+    // Dynamic reset button
+    btnReset.addEventListener('click', function(e) {
+      e.preventDefault();
+      const inputs = form.querySelectorAll('input, select');
+      inputs.forEach(input => {
+        input.value = '';
+      });
+      updateLogs();
+    });
+
+    // Intercept pagination link clicks using delegation
+    document.addEventListener('click', function(e) {
+      const link = e.target.closest('a');
+      if (link) {
+        try {
+          const url = new URL(link.href, window.location.origin);
+          if (url.pathname === '/admin/logs') {
+            e.preventDefault();
+            updateLogs(link.href);
+          }
+        } catch (err) {}
+      }
+    });
+
+    async function updateLogs(targetUrl) {
+      let url;
+      if (targetUrl) {
+        url = new URL(targetUrl);
+      } else {
+        url = new URL('/admin/logs', window.location.origin);
+        // Serialize all form fields
+        const formData = new FormData(form);
+        for (const [key, value] of formData.entries()) {
+          if (value.trim()) {
+            url.searchParams.set(key, value.trim());
+          }
+        }
+      }
+
+      // Add loading state opacity
+      const tableContainer = document.getElementById('logsTableContainer');
+      if (tableContainer) tableContainer.style.opacity = '0.5';
+
+      try {
+        const response = await fetch(url.toString(), {
+          headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        });
+        if (!response.ok) throw new Error('Network response was not ok');
+        
+        const html = await response.text();
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+
+        // Replace content of the relevant containers dynamically.
+        // We only replace 'logsTableBody' instead of 'logsTableContainer' to preserve focus on the column header inputs!
+        const replaceIds = ['paginationNav', 'paginationInfo', 'logsTableBody', 'paginationBottomNav'];
+        replaceIds.forEach(id => {
+          const oldEl = document.getElementById(id);
+          const newEl = doc.getElementById(id);
+          if (oldEl && newEl) {
+            oldEl.innerHTML = newEl.innerHTML;
+          }
+        });
+
+        // Update address bar URL without reloading the page
+        window.history.pushState({}, '', url.toString());
+
+      } catch (err) {
+        console.error('Error fetching logs:', err);
+      } finally {
+        if (tableContainer) tableContainer.style.opacity = '1';
+      }
+    }
+  })();
+</script>
+
+<%- include('../partials/footer') %>

@@ -4,6 +4,7 @@ const fs = require('fs');
 const db = require('../db');
 const { canViewDocument, documentWithShares } = require('../lib/access');
 const { isPdf, isImage, isMedia, isPlainText, isViewable, convertToHtml } = require('../lib/docPreview');
+const { logActivity } = require('../lib/logger');
 
 const router = express.Router();
 
@@ -280,6 +281,9 @@ router.get('/:id', (req, res, next) => {
       message: 'Bạn không được xem tài liệu này.'
     });
   }
+  
+  logActivity(req, 'VIEW_DOC', doc.id, doc.title);
+
   res.render('docs/view', {
     title: doc.title,
     doc,

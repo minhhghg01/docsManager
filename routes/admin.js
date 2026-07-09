@@ -5,12 +5,19 @@ const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const multer = require('multer');
 const db = require('../db');
-const { requireAdmin } = require('../middleware/auth');
+const { requireAdmin, requirePublisher } = require('../middleware/auth');
+const { logActivity } = require('../lib/logger');
 const { documentWithShares } = require('../lib/access');
 const { extractText, summarizeDocument } = require('../lib/ai');
 
 const router = express.Router();
-router.use(requireAdmin);
+router.use((req, res, next) => {
+  const p = req.path;
+  if (p === '/' || p === '/dashboard' || p.startsWith('/documents')) {
+    return requirePublisher(req, res, next);
+  }
+  return requireAdmin(req, res, next);
+});
 
 const UPLOAD_ROOT = path.join(__dirname, '..', 'public', 'uploads');
 const PDF_CACHE = path.join(__dirname, '..', 'public', 'pdf_cache');
@@ -109,7 +116,12 @@ router.get('/', (req, res) => {
 });
 
 router.get('/dashboard', (req, res) => {
-  const docCount = db.prepare('SELECT COUNT(*) AS c FROM documents').get().c;
+  let docCount;
+  if (req.user.role === 'admin') {
+    docCount = db.prepare('SELECT COUNT(*) AS c FROM documents').get().c;
+  } else {
+    docCount = db.prepare('SELECT COUNT(*) AS c FROM documents WHERE owner_khoa_id = ? OR uploaded_by = ?').get(req.user.khoa_id, req.user.id).c;
+  }
   const userCount = db.prepare('SELECT COUNT(*) AS c FROM users').get().c;
   const deptCount = db.prepare('SELECT COUNT(*) AS c FROM departments').get().c;
   res.render('admin/dashboard', {
@@ -238,21 +250,22 @@ router.post('/users', express.urlencoded({ extended: true }), (req, res) => {
       error: PW_MSG
     });
   }
-  if (role === 'khoa' && !khoa_id) {
+  if ((role === 'khoa' || role === 'department_head') && !khoa_id) {
     return res.render('admin/users', {
       title: 'Tài khoản',
       users,
       departments,
       pg: { page: 1, totalPages: 1, totalCount: users.length, pageSize: '6', showing: users.length, base: '/admin/users' },
-      error: 'Tài khoản khoa cần chọn khoa/phòng.'
+      error: 'Tài khoản Khoa hoặc Trưởng phòng cần chọn khoa/phòng.'
     });
   }
   const hash = bcrypt.hashSync(password, 10);
   const kid = role === 'admin' ? null : parseInt(khoa_id, 10);
   try {
+    const finalRole = ['admin', 'department_head', 'khoa'].includes(role) ? role : 'khoa';
     db.prepare(
       `INSERT INTO users (username, password_hash, role, khoa_id) VALUES (?,?,?,?)`
-    ).run(username.trim(), hash, role === 'admin' ? 'admin' : 'khoa', kid);
+    ).run(username.trim(), hash, finalRole, kid);
   } catch {
     return res.render('admin/users', {
       title: 'Tài khoản',
@@ -292,7 +305,16 @@ router.post('/users/:id/password', express.urlencoded({ extended: true }), (req,
 
 /* ——— Documents ——— */
 router.get('/documents', (req, res) => {
-  const rows = db.prepare(`SELECT * FROM documents ORDER BY created_at DESC`).all();
+  let rows;
+  if (req.user.role === 'admin') {
+    rows = db.prepare(`SELECT * FROM documents ORDER BY created_at DESC`).all();
+  } else {
+    rows = db.prepare(`
+      SELECT DISTINCT d.* FROM documents d
+      WHERE d.owner_khoa_id = ? OR d.uploaded_by = ?
+      ORDER BY d.created_at DESC
+    `).all(req.user.khoa_id, req.user.id);
+  }
   const allDocs = rows.map((r) => documentWithShares(db, r));
   const { items: docs, pg } = paginate(allDocs, req.query);
   pg.base = '/admin/documents';
@@ -382,10 +404,11 @@ router.post('/documents', uploadFields, (req, res) => {
     }
 
     const pub = is_public === '1' || is_public === 'on' ? 1 : 0;
-    const owner =
-      owner_khoa_id && String(owner_khoa_id).trim()
+    const owner = req.user.role === 'department_head'
+      ? req.user.khoa_id
+      : (owner_khoa_id && String(owner_khoa_id).trim()
         ? parseInt(owner_khoa_id, 10)
-        : null;
+        : null);
     const bannerFn = bannerFile ? bannerFile.filename : null;
 
     const docsToCreate = [];
@@ -438,6 +461,8 @@ router.post('/documents', uploadFields, (req, res) => {
       );
       const docId = info.lastInsertRowid;
       
+      logActivity(req, 'CREATE_DOC', docId, docInfo.title);
+      
       const shares = parseKhoaIds(req.body);
       for (const k of shares) {
         if (k !== owner) insShare.run(docId, k);
@@ -458,6 +483,14 @@ router.get('/documents/:id/edit', (req, res) => {
   const id = parseInt(req.params.id, 10);
   const row = db.prepare('SELECT * FROM documents WHERE id = ?').get(id);
   if (!row) return res.redirect('/admin/documents');
+
+  if (req.user.role !== 'admin' && row.owner_khoa_id !== req.user.khoa_id && row.uploaded_by !== req.user.id) {
+    return res.status(403).render('error', {
+      title: 'Không có quyền',
+      message: 'Bạn chỉ có quyền quản lý tài liệu thuộc khoa phòng của mình hoặc do bạn tự tải lên.'
+    });
+  }
+
   const doc = documentWithShares(db, row);
   const departments = db.prepare('SELECT * FROM departments ORDER BY name').all();
   const tags = db.prepare('SELECT DISTINCT tag FROM document_tags ORDER BY tag').all().map(t => t.tag);
@@ -475,11 +508,21 @@ router.post('/documents/:id', uploadFields, (req, res) => {
     const row = db.prepare('SELECT * FROM documents WHERE id = ?').get(id);
     if (!row) return res.redirect('/admin/documents');
 
+    const mainFile = req.files?.file?.[0];
+    const bannerFile = req.files?.banner?.[0];
+
+    if (req.user.role !== 'admin' && row.owner_khoa_id !== req.user.khoa_id && row.uploaded_by !== req.user.id) {
+      if (mainFile) fs.unlinkSync(mainFile.path);
+      if (bannerFile) fs.unlinkSync(bannerFile.path);
+      return res.status(403).render('error', {
+        title: 'Không có quyền',
+        message: 'Bạn chỉ có quyền quản lý tài liệu thuộc khoa phòng của mình hoặc do bạn tự tải lên.'
+      });
+    }
+
     const departments = db.prepare('SELECT * FROM departments ORDER BY name').all();
     const tags = db.prepare('SELECT DISTINCT tag FROM document_tags ORDER BY tag').all().map(t => t.tag);
     const { title, source_label, is_public, owner_khoa_id, source_type, file_url } = req.body;
-    const mainFile = req.files?.file?.[0];
-    const bannerFile = req.files?.banner?.[0];
 
     const isLinkType = source_type === 'link';
 
@@ -524,10 +567,11 @@ router.post('/documents/:id', uploadFields, (req, res) => {
     }
 
     const pub = is_public === '1' || is_public === 'on' ? 1 : 0;
-    const owner =
-      owner_khoa_id && String(owner_khoa_id).trim()
+    const owner = req.user.role === 'department_head'
+      ? req.user.khoa_id
+      : (owner_khoa_id && String(owner_khoa_id).trim()
         ? parseInt(owner_khoa_id, 10)
-        : null;
+        : null);
 
     let stored = row.stored_filename;
     let original = row.original_filename;
@@ -618,6 +662,8 @@ router.post('/documents/:id', uploadFields, (req, res) => {
     }
     saveTags(id, parseTags(req.body));
 
+    logActivity(req, 'EDIT_DOC', id, title.trim());
+
     res.redirect('/admin/documents');
   }
 );
@@ -625,20 +671,236 @@ router.post('/documents/:id', uploadFields, (req, res) => {
 router.post('/documents/:id/delete', (req, res) => {
   const id = parseInt(req.params.id, 10);
   const row = db.prepare('SELECT * FROM documents WHERE id = ?').get(id);
-  if (row) {
-    const fp = path.join(UPLOAD_ROOT, row.stored_filename);
-    if (fs.existsSync(fp)) fs.unlinkSync(fp);
-    if (row.pdf_cache_filename) {
-      const cp = path.join(PDF_CACHE, row.pdf_cache_filename);
-      if (fs.existsSync(cp)) fs.unlinkSync(cp);
-    }
-    const cacheDir = path.join(PDF_CACHE, String(id));
-    if (fs.existsSync(cacheDir)) {
-      fs.rmSync(cacheDir, { recursive: true, force: true });
-    }
-    db.prepare('DELETE FROM documents WHERE id = ?').run(id);
+  if (!row) return res.redirect('/admin/documents');
+
+  if (req.user.role !== 'admin' && row.owner_khoa_id !== req.user.khoa_id && row.uploaded_by !== req.user.id) {
+    return res.status(403).render('error', {
+      title: 'Không có quyền',
+      message: 'Bạn chỉ có quyền quản lý tài liệu thuộc khoa phòng của mình hoặc do bạn tự tải lên.'
+    });
   }
+
+  const fp = path.join(UPLOAD_ROOT, row.stored_filename);
+  if (fs.existsSync(fp)) fs.unlinkSync(fp);
+  if (row.pdf_cache_filename) {
+    const cp = path.join(PDF_CACHE, row.pdf_cache_filename);
+    if (fs.existsSync(cp)) fs.unlinkSync(cp);
+  }
+  const cacheDir = path.join(PDF_CACHE, String(id));
+  if (fs.existsSync(cacheDir)) {
+    fs.rmSync(cacheDir, { recursive: true, force: true });
+  }
+  db.prepare('DELETE FROM documents WHERE id = ?').run(id);
+
+  logActivity(req, 'DELETE_DOC', id, row.title);
+
   res.redirect('/admin/documents');
+});
+
+function parseUserAgent(ua) {
+  if (!ua) {
+    return {
+      deviceType: 'other',
+      deviceName: 'Không rõ',
+      deviceIcon: '❓',
+      browser: 'Không rõ',
+      os: 'Không rõ',
+      fullText: 'Không rõ'
+    };
+  }
+
+  let deviceType = 'desktop';
+  let deviceName = 'Máy tính';
+  let deviceIcon = '💻';
+  const uaLower = ua.toLowerCase();
+
+  // Detect Tablet
+  if (ua.includes('iPad') || uaLower.includes('tablet') || uaLower.includes('playbook') || uaLower.includes('silk') || uaLower.includes('kindle') || (ua.includes('Android') && !uaLower.includes('mobile'))) {
+    deviceType = 'tablet';
+    deviceName = 'Máy tính bảng';
+    deviceIcon = '📟';
+  }
+  // Detect Mobile
+  else if (ua.includes('iPhone') || ua.includes('iPod') || (ua.includes('Android') && uaLower.includes('mobile')) || uaLower.includes('webos') || uaLower.includes('blackberry') || uaLower.includes('iemobile') || uaLower.includes('opera mini')) {
+    deviceType = 'mobile';
+    deviceName = 'Điện thoại';
+    deviceIcon = '📱';
+  }
+  // Detect Desktop
+  else if (ua.includes('Windows') || ua.includes('Macintosh') || (ua.includes('Linux') && !ua.includes('Android'))) {
+    deviceType = 'desktop';
+    deviceName = 'Máy tính';
+    deviceIcon = '💻';
+  } else {
+    deviceType = 'other';
+    deviceName = 'Thiết bị khác';
+    deviceIcon = '❓';
+  }
+
+  // Parse OS & Version
+  let os = 'Khác';
+  if (ua.includes('Windows NT 10.0')) os = 'Windows 10/11';
+  else if (ua.includes('Windows NT 6.3')) os = 'Windows 8.1';
+  else if (ua.includes('Windows NT 6.2')) os = 'Windows 8';
+  else if (ua.includes('Windows NT 6.1')) os = 'Windows 7';
+  else if (ua.includes('iPhone')) {
+    const match = ua.match(/iPhone OS (\d+_\d+)/);
+    os = match ? `iOS ${match[1].replace('_', '.')}` : 'iOS';
+  } else if (ua.includes('iPad')) {
+    const match = ua.match(/CPU OS (\d+_\d+)/);
+    os = match ? `iPadOS ${match[1].replace('_', '.')}` : 'iPadOS';
+  } else if (ua.includes('Android')) {
+    const match = ua.match(/Android (\d+(\.\d+)?)/);
+    os = match ? `Android ${match[1]}` : 'Android';
+  } else if (ua.includes('Mac OS X')) {
+    const match = ua.match(/Mac OS X (\d+_\d+)/);
+    os = match ? `macOS ${match[1].replace('_', '.')}` : 'macOS';
+  } else if (ua.includes('Linux')) {
+    os = 'Linux';
+  }
+
+  // Refine deviceName based on brands & specific models for Mobile/Tablet
+  if (deviceType === 'mobile' || deviceType === 'tablet') {
+    if (ua.includes('iPhone')) {
+      deviceName = 'iPhone';
+    } else if (ua.includes('iPad')) {
+      deviceName = 'iPad';
+    } else if (ua.includes('Android')) {
+      const match = ua.match(/Android\s+\d+(?:\.\d+)?;\s*([^;\)]+)/);
+      if (match) {
+        let model = match[1].split('Build/')[0].trim();
+        model = model.replace(/;\s*wv/gi, '').trim();
+
+        const modelLower = model.toLowerCase();
+        if (modelLower.includes('samsung') || modelLower.includes('sm-') || modelLower.includes('gt-') || modelLower.includes('sgh-')) {
+          let cleanModel = model.replace(/samsung/gi, '').trim();
+          deviceName = `Samsung ${cleanModel}`;
+        } else if (modelLower.includes('redmi') || modelLower.includes('xiaomi') || modelLower.includes('poco') || modelLower.includes('mi ') || modelLower.includes('m20') || modelLower.includes('m21')) {
+          let cleanModel = model.replace(/xiaomi/gi, '').trim();
+          deviceName = `Xiaomi/Redmi ${cleanModel}`;
+        } else if (modelLower.includes('oppo') || modelLower.includes('cph') || modelLower.includes('pcd')) {
+          let cleanModel = model.replace(/oppo/gi, '').trim();
+          deviceName = `Oppo ${cleanModel}`;
+        } else if (modelLower.includes('vivo') || modelLower.includes('v20') || modelLower.includes('v21') || modelLower.includes('v19')) {
+          let cleanModel = model.replace(/vivo/gi, '').trim();
+          deviceName = `Vivo ${cleanModel}`;
+        } else if (modelLower.includes('huawei') || modelLower.includes('honor')) {
+          let cleanModel = model.replace(/huawei/gi, '').replace(/honor/gi, '').trim();
+          deviceName = `Huawei ${cleanModel}`;
+        } else if (modelLower.includes('pixel')) {
+          deviceName = `Google ${model}`;
+        } else {
+          deviceName = model;
+        }
+      } else {
+        deviceName = 'Điện thoại Android';
+      }
+    } else {
+      deviceName = 'Thiết bị di động';
+    }
+  } else if (deviceType === 'desktop') {
+    if (ua.includes('Macintosh')) {
+      deviceName = 'Máy tính macOS';
+    } else if (ua.includes('Windows')) {
+      deviceName = 'Máy tính Windows';
+    } else if (ua.includes('Linux')) {
+      deviceName = 'Máy tính Linux';
+    }
+  }
+
+  // Parse Browser
+  let browser = 'Trình duyệt';
+  if (ua.includes('Edg/')) {
+    const match = ua.match(/Edg\/(\d+)/);
+    browser = match ? `Edge ${match[1]}` : 'Edge';
+  } else if (ua.includes('Chrome') || ua.includes('CriOS')) {
+    const match = ua.match(/(?:Chrome|CriOS)\/(\d+)/);
+    browser = match ? `Chrome ${match[1]}` : 'Chrome';
+  } else if (ua.includes('Safari') && !ua.includes('Chrome') && !ua.includes('Android')) {
+    const match = ua.match(/Version\/(\d+)/);
+    browser = match ? `Safari ${match[1]}` : 'Safari';
+  } else if (ua.includes('Firefox') || ua.includes('FxiOS')) {
+    const match = ua.match(/(?:Firefox|FxiOS)\/(\d+)/);
+    browser = match ? `Firefox ${match[1]}` : 'Firefox';
+  } else if (ua.includes('OPR/') || ua.includes('Opera')) {
+    browser = 'Opera';
+  }
+
+  return {
+    deviceType,
+    deviceName,
+    deviceIcon,
+    browser,
+    os,
+    fullText: `${browser} (${os})`
+  };
+}
+
+router.get('/logs', (req, res) => {
+  const filterTime = (req.query.filter_time || '').trim();
+  const filterUsername = (req.query.filter_username || '').trim();
+  const filterAction = (req.query.filter_action || '').trim();
+  const filterDocument = (req.query.filter_document || '').trim();
+  const filterIp = (req.query.filter_ip || '').trim();
+  const filterDevice = (req.query.filter_device || '').trim();
+
+  let query = 'SELECT * FROM activity_logs';
+  const params = [];
+  const clauses = [];
+
+  if (filterTime) {
+    clauses.push('created_at LIKE ?');
+    params.push(`%${filterTime}%`);
+  }
+  if (filterUsername) {
+    clauses.push('username LIKE ?');
+    params.push(`%${filterUsername}%`);
+  }
+  if (filterAction) {
+    clauses.push('action_type = ?');
+    params.push(filterAction);
+  }
+  if (filterDocument) {
+    clauses.push('document_title LIKE ?');
+    params.push(`%${filterDocument}%`);
+  }
+  if (filterIp) {
+    clauses.push('ip_address LIKE ?');
+    params.push(`%${filterIp}%`);
+  }
+  if (filterDevice) {
+    clauses.push('user_agent LIKE ?');
+    params.push(`%${filterDevice}%`);
+  }
+
+  if (clauses.length > 0) {
+    query += ' WHERE ' + clauses.join(' AND ');
+  }
+
+  query += ' ORDER BY created_at DESC';
+
+  const allLogs = db.prepare(query).all(...params);
+  const { items: rawLogs, pg } = paginate(allLogs, req.query);
+  pg.base = '/admin/logs';
+
+  const logs = rawLogs.map(log => ({
+    ...log,
+    cleanDevice: parseUserAgent(log.user_agent)
+  }));
+
+  res.render('admin/logs', {
+    title: 'Nhật ký tác động',
+    logs,
+    pg,
+    filters: {
+      filter_time: filterTime,
+      filter_username: filterUsername,
+      filter_action: filterAction,
+      filter_document: filterDocument,
+      filter_ip: filterIp,
+      filter_device: filterDevice
+    }
+  });
 });
 
 module.exports = router;

@@ -60,6 +60,19 @@ function requireAdmin(req, res, next) {
   next();
 }
 
+function requirePublisher(req, res, next) {
+  if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'department_head')) {
+    if (req.accepts('html')) {
+      return res.status(403).render('error', {
+        title: 'Không có quyền',
+        message: 'Chỉ quản trị viên hoặc trưởng phòng được phép thực hiện hành động này.'
+      });
+    }
+    return res.status(403).json({ error: 'Không có quyền' });
+  }
+  next();
+}
+
 function setAuthCookie(res, userId) {
   const token = signToken({ sub: userId });
   const maxAgeMs = 480 * 60 * 1000;
@@ -80,6 +93,7 @@ module.exports = {
   optionalAuth,
   requireAuth,
   requireAdmin,
+  requirePublisher,
   setAuthCookie,
   clearAuthCookie,
   signToken

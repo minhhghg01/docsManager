@@ -68,6 +68,9 @@ if (!process.env.JWT_SECRET) {
 (async () => {
   await db.initDb();
   console.log("SQLite đã sẵn sàng");
+  
+  const { scheduleDailyBackup } = require("./lib/backup");
+  scheduleDailyBackup();
 
   const HOST = "0.0.0.0"; // Cho phép tất cả các thiết bị trong cùng mạng LAN truy cập
 

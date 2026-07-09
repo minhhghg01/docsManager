@@ -167,6 +167,47 @@ function initSchema(db) {
       UNIQUE(document_id, tag)
     )
   `);
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS activity_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      username TEXT,
+      action_type TEXT NOT NULL,
+      document_id INTEGER REFERENCES documents(id) ON DELETE SET NULL,
+      document_title TEXT,
+      ip_address TEXT,
+      user_agent TEXT,
+      created_at TEXT DEFAULT (datetime('now'))
+    )
+  `);
+
+  // Migration: Nâng cấp check constraint bảng users
+  try {
+    const usersSchema = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='users'").get();
+    if (usersSchema && usersSchema.sql && !usersSchema.sql.includes('department_head')) {
+      console.log('[Migration] Nâng cấp bảng users để hỗ trợ vai trò department_head...');
+      db.exec(`
+        BEGIN TRANSACTION;
+        ALTER TABLE users RENAME TO users_old;
+        CREATE TABLE users (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          username TEXT NOT NULL UNIQUE,
+          password_hash TEXT NOT NULL,
+          role TEXT NOT NULL CHECK (role IN ('admin', 'department_head', 'khoa')),
+          khoa_id INTEGER REFERENCES departments(id) ON DELETE SET NULL,
+          created_at TEXT DEFAULT (datetime('now'))
+        );
+        INSERT INTO users (id, username, password_hash, role, khoa_id, created_at)
+        SELECT id, username, password_hash, role, khoa_id, created_at FROM users_old;
+        DROP TABLE users_old;
+        COMMIT;
+      `);
+      console.log('[Migration] Nâng cấp bảng users thành công!');
+    }
+  } catch (err) {
+    console.error('[Migration] Lỗi nâng cấp bảng users:', err);
+    try { db.exec('ROLLBACK;'); } catch(e) {}
+  }
 }
 
 async function initDb() {
@@ -197,6 +238,7 @@ const proxy = new Proxy(
     get(_target, prop) {
       if (prop === 'initDb') return initDb;
       if (prop === 'dbPath') return dbPath;
+      if (prop === 'saveSync') return saveSync;
       if (!_instance) {
         throw new Error(
           'DB chưa khởi tạo — gọi await db.initDb() trong server.js trước'

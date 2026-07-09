@@ -16,6 +16,8 @@ router.get('/login', (req, res) => {
   });
 });
 
+const { logActivity } = require('../lib/logger');
+
 router.post('/login', express.urlencoded({ extended: true }), (req, res) => {
   const { username, password, next } = req.body;
   const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username?.trim());
@@ -27,12 +29,19 @@ router.post('/login', express.urlencoded({ extended: true }), (req, res) => {
     });
   }
   setAuthCookie(res, user.id);
+  // Gán tạm thời req.user để logger ghi nhận đúng thông tin user vừa đăng nhập
+  req.user = user;
+  logActivity(req, 'LOGIN');
+  
   const redirectTo =
     next && typeof next === 'string' && next.startsWith('/') ? next : '/';
   res.redirect(redirectTo);
 });
 
 router.post('/logout', (req, res) => {
+  if (req.user) {
+    logActivity(req, 'LOGOUT');
+  }
   clearAuthCookie(res);
   res.redirect('/');
 });

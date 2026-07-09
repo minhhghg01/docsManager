@@ -25,12 +25,19 @@
     </div>
     <div>
       <label class="block text-sm font-medium text-slate-700 dark:text-slate-300">Thuộc khoa/phòng</label>
-      <select name="owner_khoa_id" class="mt-1 w-full max-w-md rounded-md border border-slate-300 dark:border-slate-600 bg-transparent dark:bg-slate-800 dark:text-white px-3 py-2 transition-all focus:border-brand-500 focus:ring-1 focus:ring-brand-500">
-        <option value="">— Không gán —</option>
-        <% departments.forEach(function (k) { %>
-          <option value="<%= k.id %>" <%= doc && doc.owner_khoa_id === k.id ? 'selected' : '' %>><%= k.name %></option>
-        <% }); %>
-      </select>
+      <% if (user && user.role === 'department_head') { %>
+        <select disabled class="mt-1 w-full max-w-md rounded-md border border-slate-300 dark:border-slate-600 bg-slate-100 dark:bg-slate-700/50 dark:text-slate-400 px-3 py-2 cursor-not-allowed">
+          <option value="<%= user.khoa_id %>" selected><%= user.khoa_name %></option>
+        </select>
+        <input type="hidden" name="owner_khoa_id" value="<%= user.khoa_id %>" />
+      <% } else { %>
+        <select name="owner_khoa_id" class="mt-1 w-full max-w-md rounded-md border border-slate-300 dark:border-slate-600 bg-transparent dark:bg-slate-800 dark:text-white px-3 py-2 transition-all focus:border-brand-500 focus:ring-1 focus:ring-brand-500">
+          <option value="">— Không gán —</option>
+          <% departments.forEach(function (k) { %>
+            <option value="<%= k.id %>" <%= doc && doc.owner_khoa_id === k.id ? 'selected' : '' %>><%= k.name %></option>
+          <% }); %>
+        </select>
+      <% } %>
     </div>
     <div>
       <label class="block text-sm font-medium text-slate-700 dark:text-slate-300">Chia sẻ xem cho các khoa khác</label>
