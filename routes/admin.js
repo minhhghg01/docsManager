@@ -28,19 +28,27 @@ const PDF_CACHE = path.join(__dirname, '..', 'public', 'pdf_cache');
 function autoSummarizeInBackground(docId, storedFilename, originalFilename, title) {
   setTimeout(async () => {
     try {
+      console.log(`[AI Auto-Summarize] Bắt đầu tự động tóm tắt tài liệu ID ${docId}: "${title}"...`);
       const filePath = path.join(UPLOAD_ROOT, storedFilename);
-      if (!fs.existsSync(filePath)) return;
+      if (!fs.existsSync(filePath)) {
+        console.warn(`[AI Auto-Summarize] File ${filePath} không tồn tại trên đĩa`);
+        return;
+      }
       
       const text = await extractText(filePath, originalFilename);
-      if (!text || text.trim().length < 50) return;
+      if (!text || text.trim().length < 20) {
+        console.warn(`[AI Auto-Summarize] Tài liệu ID ${docId} không có đủ văn bản (độ dài: ${text?.length || 0})`);
+        return;
+      }
 
       const summary = await summarizeDocument(text, title);
       db.prepare('UPDATE documents SET ai_summary = ? WHERE id = ?').run(summary, docId);
-      console.log(`[AI] Đã tóm tắt tự động xong cho tài liệu ID ${docId}`);
+      if (typeof db.saveSync === 'function') db.saveSync();
+      console.log(`[AI Auto-Summarize] Đã hoàn thành tóm tắt tự động cho tài liệu ID ${docId}`);
     } catch (err) {
       console.error(`[AI Auto-Summarize] Lỗi tài liệu ID ${docId}:`, err.message);
     }
-  }, 2000); // Đợi 2s để file ổn định
+  }, 1000); // Đợi 1s để file được ghi hoàn tất xuống ổ đĩa
 }
 
 function fixOriginalName(file) {
@@ -215,7 +223,8 @@ router.get('/users', (req, res) => {
     users,
     departments,
     pg,
-    error: null
+    error: req.query.error || null,
+    success: req.query.success || null
   });
 });
 
@@ -238,7 +247,8 @@ router.post('/users', express.urlencoded({ extended: true }), (req, res) => {
       users,
       departments,
       pg: { page: 1, totalPages: 1, totalCount: users.length, pageSize: '6', showing: users.length, base: '/admin/users' },
-      error: 'Cần username và mật khẩu.'
+      error: 'Cần username và mật khẩu.',
+      success: null
     });
   }
   if (!PW_REGEX.test(password)) {
@@ -247,7 +257,8 @@ router.post('/users', express.urlencoded({ extended: true }), (req, res) => {
       users,
       departments,
       pg: { page: 1, totalPages: 1, totalCount: users.length, pageSize: '6', showing: users.length, base: '/admin/users' },
-      error: PW_MSG
+      error: PW_MSG,
+      success: null
     });
   }
   if ((role === 'khoa' || role === 'department_head') && !khoa_id) {
@@ -256,7 +267,8 @@ router.post('/users', express.urlencoded({ extended: true }), (req, res) => {
       users,
       departments,
       pg: { page: 1, totalPages: 1, totalCount: users.length, pageSize: '6', showing: users.length, base: '/admin/users' },
-      error: 'Tài khoản Khoa hoặc Trưởng phòng cần chọn khoa/phòng.'
+      error: 'Tài khoản Khoa hoặc Trưởng phòng cần chọn khoa/phòng.',
+      success: null
     });
   }
   const hash = bcrypt.hashSync(password, 10);
@@ -266,16 +278,49 @@ router.post('/users', express.urlencoded({ extended: true }), (req, res) => {
     db.prepare(
       `INSERT INTO users (username, password_hash, role, khoa_id) VALUES (?,?,?,?)`
     ).run(username.trim(), hash, finalRole, kid);
+    if (typeof db.saveSync === 'function') db.saveSync();
   } catch {
     return res.render('admin/users', {
       title: 'Tài khoản',
       users,
       departments,
       pg: { page: 1, totalPages: 1, totalCount: users.length, pageSize: '6', showing: users.length, base: '/admin/users' },
-      error: 'Username đã tồn tại.'
+      error: 'Username đã tồn tại.',
+      success: null
     });
   }
-  res.redirect('/admin/users');
+  res.redirect('/admin/users?success=' + encodeURIComponent('Đã tạo tài khoản thành công.'));
+});
+
+router.post('/users/:id/edit', express.urlencoded({ extended: true }), (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  const { role, khoa_id } = req.body;
+
+  const targetUser = db.prepare('SELECT * FROM users WHERE id = ?').get(id);
+  if (!targetUser) {
+    return res.redirect('/admin/users?error=' + encodeURIComponent('Không tìm thấy tài khoản.'));
+  }
+
+  // Không cho phép tự hạ quyền admin của chính tài khoản đang đăng nhập
+  if (id === req.user.id && role !== 'admin') {
+    return res.redirect('/admin/users?error=' + encodeURIComponent('Bạn không thể tự hạ quyền quản trị viên của chính tài khoản đang đăng nhập.'));
+  }
+
+  const validRoles = ['admin', 'department_head', 'khoa'];
+  const finalRole = validRoles.includes(role) ? role : targetUser.role;
+
+  if ((finalRole === 'khoa' || finalRole === 'department_head') && (!khoa_id || !String(khoa_id).trim())) {
+    return res.redirect('/admin/users?error=' + encodeURIComponent('Tài khoản Khoa hoặc Trưởng phòng cần chọn khoa/phòng.'));
+  }
+
+  const kid = finalRole === 'admin' ? null : (khoa_id && String(khoa_id).trim() ? parseInt(khoa_id, 10) : null);
+
+  db.prepare('UPDATE users SET role = ?, khoa_id = ? WHERE id = ?').run(finalRole, kid, id);
+  if (typeof db.saveSync === 'function') db.saveSync();
+
+  logActivity(req, 'UPDATE_USER', id, targetUser.username);
+
+  res.redirect('/admin/users?success=' + encodeURIComponent(`Đã cập nhật vai trò và khoa phòng cho tài khoản "${targetUser.username}".`));
 });
 
 router.post('/users/:id/delete', (req, res) => {
@@ -284,7 +329,8 @@ router.post('/users/:id/delete', (req, res) => {
     return res.redirect('/admin/users');
   }
   db.prepare('DELETE FROM users WHERE id = ?').run(id);
-  res.redirect('/admin/users');
+  if (typeof db.saveSync === 'function') db.saveSync();
+  res.redirect('/admin/users?success=' + encodeURIComponent('Đã xóa tài khoản.'));
 });
 
 router.post('/users/:id/password', express.urlencoded({ extended: true }), (req, res) => {
@@ -292,15 +338,12 @@ router.post('/users/:id/password', express.urlencoded({ extended: true }), (req,
   const password = req.body.password;
   if (!password) return res.redirect('/admin/users');
   if (!PW_REGEX.test(password)) {
-    const all = db.prepare(`SELECT u.*, d.name AS khoa_name FROM users u LEFT JOIN departments d ON d.id = u.khoa_id ORDER BY u.role DESC, u.username`).all();
-    const departments = db.prepare('SELECT * FROM departments ORDER BY name').all();
-    const { items: users, pg } = paginate(all, req.query);
-    pg.base = '/admin/users';
-    return res.render('admin/users', { title: 'Tài khoản', users, departments, pg, error: PW_MSG });
+    return res.redirect('/admin/users?error=' + encodeURIComponent(PW_MSG));
   }
   const hash = bcrypt.hashSync(password, 10);
   db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hash, id);
-  res.redirect('/admin/users');
+  if (typeof db.saveSync === 'function') db.saveSync();
+  res.redirect('/admin/users?success=' + encodeURIComponent('Đã đổi mật khẩu thành công.'));
 });
 
 /* ——— Documents ——— */
@@ -404,11 +447,15 @@ router.post('/documents', uploadFields, (req, res) => {
     }
 
     const pub = is_public === '1' || is_public === 'on' ? 1 : 0;
-    const owner = req.user.role === 'department_head'
-      ? req.user.khoa_id
-      : (owner_khoa_id && String(owner_khoa_id).trim()
+    const owner = req.user.role === 'admin'
+      ? (owner_khoa_id && String(owner_khoa_id).trim()
         ? parseInt(owner_khoa_id, 10)
-        : null);
+        : null)
+      : (req.user.khoa_id
+        ? parseInt(req.user.khoa_id, 10)
+        : (owner_khoa_id && String(owner_khoa_id).trim()
+          ? parseInt(owner_khoa_id, 10)
+          : null));
     const bannerFn = bannerFile ? bannerFile.filename : null;
 
     const docsToCreate = [];
@@ -465,7 +512,7 @@ router.post('/documents', uploadFields, (req, res) => {
       
       const shares = parseKhoaIds(req.body);
       for (const k of shares) {
-        if (k !== owner) insShare.run(docId, k);
+        insShare.run(docId, k);
       }
       saveTags(docId, parseTags(req.body));
       
@@ -474,6 +521,8 @@ router.post('/documents', uploadFields, (req, res) => {
         autoSummarizeInBackground(docId, docInfo.storedFilename, docInfo.originalFilename, docInfo.title);
       }
     }
+
+    if (typeof db.saveSync === 'function') db.saveSync();
 
     res.redirect('/admin/documents');
   }
@@ -484,7 +533,9 @@ router.get('/documents/:id/edit', (req, res) => {
   const row = db.prepare('SELECT * FROM documents WHERE id = ?').get(id);
   if (!row) return res.redirect('/admin/documents');
 
-  if (req.user.role !== 'admin' && row.owner_khoa_id !== req.user.khoa_id && row.uploaded_by !== req.user.id) {
+  const isOwnerKhoa = req.user.khoa_id && Number(row.owner_khoa_id) === Number(req.user.khoa_id);
+  const isUploader = Number(row.uploaded_by) === Number(req.user.id);
+  if (req.user.role !== 'admin' && !isOwnerKhoa && !isUploader) {
     return res.status(403).render('error', {
       title: 'Không có quyền',
       message: 'Bạn chỉ có quyền quản lý tài liệu thuộc khoa phòng của mình hoặc do bạn tự tải lên.'
@@ -511,7 +562,9 @@ router.post('/documents/:id', uploadFields, (req, res) => {
     const mainFile = req.files?.file?.[0];
     const bannerFile = req.files?.banner?.[0];
 
-    if (req.user.role !== 'admin' && row.owner_khoa_id !== req.user.khoa_id && row.uploaded_by !== req.user.id) {
+    const isOwnerKhoa = req.user.khoa_id && Number(row.owner_khoa_id) === Number(req.user.khoa_id);
+    const isUploader = Number(row.uploaded_by) === Number(req.user.id);
+    if (req.user.role !== 'admin' && !isOwnerKhoa && !isUploader) {
       if (mainFile) fs.unlinkSync(mainFile.path);
       if (bannerFile) fs.unlinkSync(bannerFile.path);
       return res.status(403).render('error', {
@@ -567,11 +620,15 @@ router.post('/documents/:id', uploadFields, (req, res) => {
     }
 
     const pub = is_public === '1' || is_public === 'on' ? 1 : 0;
-    const owner = req.user.role === 'department_head'
-      ? req.user.khoa_id
-      : (owner_khoa_id && String(owner_khoa_id).trim()
+    const owner = req.user.role === 'admin'
+      ? (owner_khoa_id && String(owner_khoa_id).trim()
         ? parseInt(owner_khoa_id, 10)
-        : null);
+        : null)
+      : (req.user.khoa_id
+        ? parseInt(req.user.khoa_id, 10)
+        : (owner_khoa_id && String(owner_khoa_id).trim()
+          ? parseInt(owner_khoa_id, 10)
+          : null));
 
     let stored = row.stored_filename;
     let original = row.original_filename;
@@ -658,9 +715,11 @@ router.post('/documents/:id', uploadFields, (req, res) => {
       'INSERT OR IGNORE INTO document_shares (document_id, khoa_id) VALUES (?,?)'
     );
     for (const k of shares) {
-      if (k !== owner) insShare.run(id, k);
+      insShare.run(id, k);
     }
     saveTags(id, parseTags(req.body));
+
+    if (typeof db.saveSync === 'function') db.saveSync();
 
     logActivity(req, 'EDIT_DOC', id, title.trim());
 
@@ -673,7 +732,9 @@ router.post('/documents/:id/delete', (req, res) => {
   const row = db.prepare('SELECT * FROM documents WHERE id = ?').get(id);
   if (!row) return res.redirect('/admin/documents');
 
-  if (req.user.role !== 'admin' && row.owner_khoa_id !== req.user.khoa_id && row.uploaded_by !== req.user.id) {
+  const isOwnerKhoa = req.user.khoa_id && Number(row.owner_khoa_id) === Number(req.user.khoa_id);
+  const isUploader = Number(row.uploaded_by) === Number(req.user.id);
+  if (req.user.role !== 'admin' && !isOwnerKhoa && !isUploader) {
     return res.status(403).render('error', {
       title: 'Không có quyền',
       message: 'Bạn chỉ có quyền quản lý tài liệu thuộc khoa phòng của mình hoặc do bạn tự tải lên.'
@@ -691,6 +752,7 @@ router.post('/documents/:id/delete', (req, res) => {
     fs.rmSync(cacheDir, { recursive: true, force: true });
   }
   db.prepare('DELETE FROM documents WHERE id = ?').run(id);
+  if (typeof db.saveSync === 'function') db.saveSync();
 
   logActivity(req, 'DELETE_DOC', id, row.title);
 

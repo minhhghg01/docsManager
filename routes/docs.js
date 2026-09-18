@@ -31,9 +31,14 @@ function buildVisibilityClause(user) {
   } else if (!user) {
     where = 'WHERE d.is_public = 1';
   } else {
-    where = 'WHERE (d.is_public = 1 OR d.owner_khoa_id = ? OR s.khoa_id = ?)';
-    params.push(user.khoa_id, user.khoa_id);
-    needJoin = true;
+    const orParts = ['d.is_public = 1', 'd.uploaded_by = ?'];
+    params.push(user.id);
+    if (user.khoa_id) {
+      orParts.push('d.owner_khoa_id = ?', 's.khoa_id = ?');
+      params.push(user.khoa_id, user.khoa_id);
+      needJoin = true;
+    }
+    where = `WHERE (${orParts.join(' OR ')})`;
   }
   return { where, params, needJoin };
 }
@@ -227,7 +232,7 @@ router.get('/:id/view', async (req, res, next) => {
     return res.type('html').status(404).send(simpleMsg('File không còn trên máy chủ.'));
   }
 
-  if (isPdf(doc.original_filename) || isImage(doc.original_filename) || isMedia(doc.original_filename) || isPlainText(doc.original_filename)) {
+  if (isPdf(doc.original_filename) || isImage(doc.original_filename) || isMedia(doc.original_filename)) {
     // Trình duyệt hỗ trợ native các đuôi này
     res.type(path.extname(doc.original_filename));
     return res.sendFile(filePath);
@@ -269,6 +274,8 @@ router.get('/:id/download', (req, res, next) => {
   res.download(filePath, doc.original_filename);
 });
 
+const { requireAuth } = require('../middleware/auth');
+
 router.get('/:id', (req, res, next) => {
   const doc = getDocById(req.params.id);
   if (!doc) return next();
@@ -284,12 +291,100 @@ router.get('/:id', (req, res, next) => {
   
   logActivity(req, 'VIEW_DOC', doc.id, doc.title);
 
+  const highlight = (req.query.highlight || '').trim();
+
+  // Lấy danh sách bình luận kèm thông tin người dùng và khoa phòng
+  const comments = db.prepare(`
+    SELECT c.*, u.username, u.role, d.name AS khoa_name, d.name AS department_name
+    FROM document_comments c
+    JOIN users u ON u.id = c.user_id
+    LEFT JOIN departments d ON d.id = u.khoa_id
+    WHERE c.document_id = ?
+    ORDER BY c.created_at ASC
+  `).all(doc.id);
+
   res.render('docs/view', {
     title: doc.title,
     doc,
+    comments: comments || [],
+    highlight,
     viewMode: null,
     viewError: null
   });
+});
+
+/* ───── Thêm bình luận cho tài liệu ───── */
+router.post('/:id/comments', requireAuth, (req, res) => {
+  const isAjax = req.xhr || req.headers['accept']?.includes('application/json') || req.is('json');
+  const doc = getDocById(req.params.id);
+  if (!doc) {
+    if (isAjax) return res.status(404).json({ error: 'Tài liệu không tồn tại.' });
+    return res.status(404).render('error', { title: 'Không tìm thấy', message: 'Tài liệu không tồn tại.' });
+  }
+  if (!canViewDocument(req.user, doc)) {
+    if (isAjax) return res.status(403).json({ error: 'Bạn không có quyền truy cập tài liệu này.' });
+    return res.status(403).render('error', { title: 'Không có quyền', message: 'Bạn không có quyền truy cập tài liệu này.' });
+  }
+
+  const content = (req.body.content || '').trim();
+  if (!content) {
+    if (isAjax) return res.status(400).json({ error: 'Nội dung bình luận không được để trống.' });
+    return res.redirect(`/docs/${doc.id}?error=${encodeURIComponent('Nội dung bình luận không được để trống.')}#comments`);
+  }
+
+  const info = db.prepare(`
+    INSERT INTO document_comments (document_id, user_id, content)
+    VALUES (?, ?, ?)
+  `).run(doc.id, req.user.id, content);
+
+  if (typeof db.saveSync === 'function') db.saveSync();
+  logActivity(req, 'COMMENT_DOC', doc.id, doc.title);
+
+  if (isAjax) {
+    const newComment = db.prepare(`
+      SELECT c.*, u.username, u.role, d.name AS khoa_name, d.name AS department_name
+      FROM document_comments c
+      JOIN users u ON u.id = c.user_id
+      LEFT JOIN departments d ON d.id = u.khoa_id
+      WHERE c.id = ?
+    `).get(info.lastInsertRowid);
+    return res.json({ ok: true, comment: newComment, currentUserId: req.user.id, currentUserRole: req.user.role });
+  }
+
+  res.redirect(`/docs/${doc.id}?success=${encodeURIComponent('Đã gửi bình luận thành công.')}#comments`);
+});
+
+/* ───── Xóa bình luận (Admin hoặc chính chủ) ───── */
+router.post('/:id/comments/:commentId/delete', requireAuth, (req, res) => {
+  const isAjax = req.xhr || req.headers['accept']?.includes('application/json') || req.is('json');
+  const doc = getDocById(req.params.id);
+  if (!doc) {
+    if (isAjax) return res.status(404).json({ error: 'Tài liệu không tồn tại.' });
+    return res.status(404).render('error', { title: 'Không tìm thấy', message: 'Tài liệu không tồn tại.' });
+  }
+
+  const commentId = parseInt(req.params.commentId, 10);
+  const comment = db.prepare('SELECT * FROM document_comments WHERE id = ? AND document_id = ?').get(commentId, doc.id);
+  if (!comment) {
+    if (isAjax) return res.status(404).json({ error: 'Bình luận không tồn tại hoặc đã bị xóa.' });
+    return res.redirect(`/docs/${doc.id}#comments`);
+  }
+
+  // Chỉ Admin hoặc chính người tạo bình luận mới có quyền xóa
+  if (req.user.role !== 'admin' && req.user.id !== comment.user_id) {
+    if (isAjax) return res.status(403).json({ error: 'Bạn không có quyền xóa bình luận này.' });
+    return res.status(403).render('error', { title: 'Không có quyền', message: 'Bạn không có quyền xóa bình luận này.' });
+  }
+
+  db.prepare('DELETE FROM document_comments WHERE id = ?').run(commentId);
+  if (typeof db.saveSync === 'function') db.saveSync();
+  logActivity(req, 'DELETE_COMMENT', doc.id, doc.title);
+
+  if (isAjax) {
+    return res.json({ ok: true, commentId });
+  }
+
+  res.redirect(`/docs/${doc.id}?success=${encodeURIComponent('Đã xóa bình luận.')}#comments`);
 });
 
 module.exports = router;

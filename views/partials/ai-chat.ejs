@@ -20,15 +20,29 @@
   style="display:none;">
 
   <!-- Header -->
-  <div class="flex items-center gap-3 bg-gradient-to-r from-indigo-600 to-purple-600 px-5 py-4">
-    <div class="flex h-9 w-9 items-center justify-center rounded-full bg-white/20">
-      <svg class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z"/>
-      </svg>
+  <div class="flex items-center justify-between bg-gradient-to-r from-indigo-600 to-purple-600 px-5 py-3.5">
+    <div class="flex items-center gap-3">
+      <div class="flex h-9 w-9 items-center justify-center rounded-full bg-white/20">
+        <svg class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z"/>
+        </svg>
+      </div>
+      <div>
+        <h3 class="text-sm font-bold text-white">Trợ lý AI</h3>
+        <p class="text-xs text-white/70">Hỏi đáp dựa trên tài liệu nội bộ</p>
+      </div>
     </div>
-    <div>
-      <h3 class="text-sm font-bold text-white">Trợ lý AI</h3>
-      <p class="text-xs text-white/70">Hỏi đáp dựa trên tài liệu nội bộ</p>
+    <div class="flex items-center gap-1">
+      <button onclick="clearAiChatHistory()" class="rounded-lg p-1.5 text-white/80 hover:bg-white/20 hover:text-white transition-colors" title="Xóa lịch sử cuộc trò chuyện này">
+        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+        </svg>
+      </button>
+      <button onclick="toggleAiChat()" class="rounded-lg p-1.5 text-white/80 hover:bg-white/20 hover:text-white transition-colors" title="Đóng">
+        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
     </div>
   </div>
 
@@ -105,14 +119,71 @@
 </style>
 
 <script>
+const AI_GLOBAL_CHAT_KEY = 'docs_global_ai_chat_session_v1';
+const AI_GLOBAL_OPEN_KEY = 'docs_global_ai_chat_is_open';
+
 let aiChatOpen = false;
 
-function toggleAiChat() {
+function getGlobalChatHistory() {
+  try {
+    const raw = sessionStorage.getItem(AI_GLOBAL_CHAT_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch(e) {
+    return [];
+  }
+}
+
+function saveGlobalChatMessage(msg) {
+  try {
+    const list = getGlobalChatHistory();
+    list.push(msg);
+    if (list.length > 50) list.shift();
+    sessionStorage.setItem(AI_GLOBAL_CHAT_KEY, JSON.stringify(list));
+  } catch(e) {}
+}
+
+function updateLastGlobalChatSources(sources) {
+  try {
+    const list = getGlobalChatHistory();
+    if (list.length > 0) {
+      list[list.length - 1].sources = sources;
+      sessionStorage.setItem(AI_GLOBAL_CHAT_KEY, JSON.stringify(list));
+    }
+  } catch(e) {}
+}
+
+function clearAiChatHistory() {
+  if (confirm('Bạn có muốn xóa toàn bộ lịch sử cuộc trò chuyện AI trong phiên này?')) {
+    sessionStorage.removeItem(AI_GLOBAL_CHAT_KEY);
+    const container = document.getElementById('ai-chat-messages');
+    container.innerHTML = `
+      <div class="flex gap-3" id="ai-welcome-msg">
+        <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-100">
+          <span class="text-sm">🤖</span>
+        </div>
+        <div class="rounded-2xl rounded-tl-sm bg-slate-100 px-4 py-3 text-sm text-slate-700 max-w-[85%]">
+          <div class="mb-2">Xin chào! Tôi là trợ lý AI. Hãy đặt câu hỏi về nội dung các tài liệu trong hệ thống, tôi sẽ tìm và trả lời cho bạn.</div>
+          <button id="btn-tts-global-welcome" data-text="Xin chào! Tôi là trợ lý AI. Hãy đặt câu hỏi về nội dung các tài liệu trong hệ thống, tôi sẽ tìm và trả lời cho bạn." onclick="playGlobalTtSAudio(this.dataset.text, this.id)" class="inline-flex items-center gap-1 text-xs font-medium text-brand-600 bg-indigo-50 hover:bg-brand-100 px-2 py-1 rounded transition-colors" title="Đọc văn bản">
+            <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.5-.62-1.5-1.5v-4.5c0-.88.62-1.5 1.5-1.5h2.24Z"/></svg>
+            Nghe đáp án
+          </button>
+        </div>
+      </div>`;
+  }
+}
+
+function toggleAiChat(explicitState) {
   const panel = document.getElementById('ai-chat-panel');
   const iconOpen = document.getElementById('ai-chat-icon-open');
   const iconClose = document.getElementById('ai-chat-icon-close');
 
-  aiChatOpen = !aiChatOpen;
+  if (typeof explicitState === 'boolean') {
+    aiChatOpen = explicitState;
+  } else {
+    aiChatOpen = !aiChatOpen;
+  }
+
+  sessionStorage.setItem(AI_GLOBAL_OPEN_KEY, aiChatOpen ? '1' : '0');
 
   if (aiChatOpen) {
     panel.style.display = 'flex';
@@ -120,7 +191,7 @@ function toggleAiChat() {
     panel.classList.remove('ai-panel-hide');
     iconOpen.classList.add('hidden');
     iconClose.classList.remove('hidden');
-    document.getElementById('ai-chat-input').focus();
+    document.getElementById('ai-chat-input')?.focus();
   } else {
     panel.classList.remove('ai-panel-show');
     panel.classList.add('ai-panel-hide');
@@ -130,7 +201,7 @@ function toggleAiChat() {
   }
 }
 
-function addChatMessage(role, content) {
+function addChatMessage(role, content, saveToStorage = true) {
   const container = document.getElementById('ai-chat-messages');
 
   const wrapper = document.createElement('div');
@@ -159,6 +230,11 @@ function addChatMessage(role, content) {
 
   container.appendChild(wrapper);
   container.scrollTop = container.scrollHeight;
+
+  if (saveToStorage) {
+    saveGlobalChatMessage({ role, content });
+  }
+
   return wrapper;
 }
 
@@ -185,23 +261,29 @@ function removeThinkingIndicator() {
   if (el) el.remove();
 }
 
-function addSourceLinks(sources) {
+function addSourceLinks(sources, saveToStorage = true) {
   if (!sources || sources.length === 0) return;
   const container = document.getElementById('ai-chat-messages');
   const wrapper = document.createElement('div');
   wrapper.className = 'flex gap-3 ai-msg-animate';
-  const links = sources.map(s =>
-    `<a href="/docs/${s.id}" target="_blank" class="inline-flex items-center gap-1 rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-xs font-medium text-indigo-600 transition-all hover:bg-indigo-100 no-underline">
-      <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"/></svg>
-      ${escapeHtmlChat(s.title)}
-    </a>`
-  ).join('');
+  const links = sources.map(s => {
+    const url = s.highlight ? `/docs/${s.id}?highlight=${encodeURIComponent(s.highlight)}` : `/docs/${s.id}`;
+    const badge = s.highlight ? ' <span class="ml-1 rounded bg-amber-100 dark:bg-amber-900/60 px-1 py-0.5 text-[10px] text-amber-700 dark:text-amber-300">🎯 Trích dẫn</span>' : '';
+    return `<a href="${url}" target="_blank" class="inline-flex items-center gap-1 rounded-lg border border-indigo-200 bg-indigo-50 dark:bg-indigo-950/40 dark:border-indigo-800 px-2.5 py-1 text-xs font-medium text-indigo-600 dark:text-indigo-400 transition-all hover:bg-indigo-100 dark:hover:bg-indigo-900/60 no-underline" title="${s.highlight ? 'Xem văn bản & tô sáng đoạn trích dẫn' : escapeHtmlChat(s.title)}">
+      <svg class="h-3 w-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"/></svg>
+      <span class="truncate max-w-[180px]">${escapeHtmlChat(s.title)}</span>${badge}
+    </a>`;
+  }).join('');
 
   wrapper.innerHTML = `
     <div class="w-8 shrink-0"></div>
     <div class="flex flex-wrap gap-1.5">${links}</div>`;
   container.appendChild(wrapper);
   container.scrollTop = container.scrollHeight;
+
+  if (saveToStorage) {
+    updateLastGlobalChatSources(sources);
+  }
 }
 
 async function sendAiChat(e) {
@@ -211,8 +293,8 @@ async function sendAiChat(e) {
   const question = input.value.trim();
   if (!question) return;
 
-  // Add user message
-  addChatMessage('user', question);
+  // Add user message and save
+  addChatMessage('user', question, true);
   input.value = '';
   input.disabled = true;
   sendBtn.disabled = true;
@@ -230,19 +312,44 @@ async function sendAiChat(e) {
     removeThinkingIndicator();
 
     if (!resp.ok) {
-      addChatMessage('ai', '⚠️ ' + (data.error || 'Lỗi không xác định'));
+      addChatMessage('ai', '⚠️ ' + (data.error || 'Lỗi không xác định'), true);
     } else {
-      addChatMessage('ai', data.answer);
-      addSourceLinks(data.sources);
+      addChatMessage('ai', data.answer, true);
+      if (data.sources && data.sources.length > 0) {
+        addSourceLinks(data.sources, true);
+      }
     }
   } catch (err) {
     removeThinkingIndicator();
-    addChatMessage('ai', '⚠️ Lỗi kết nối: ' + err.message);
+    addChatMessage('ai', '⚠️ Lỗi kết nối: ' + err.message, true);
   }
 
   input.disabled = false;
   sendBtn.disabled = false;
   input.focus();
+}
+
+function initGlobalAiChatHistory() {
+  const history = getGlobalChatHistory();
+  if (history && history.length > 0) {
+    history.forEach(item => {
+      addChatMessage(item.role, item.content, false);
+      if (item.sources && item.sources.length > 0) {
+        addSourceLinks(item.sources, false);
+      }
+    });
+  }
+
+  if (sessionStorage.getItem(AI_GLOBAL_OPEN_KEY) === '1') {
+    toggleAiChat(true);
+  }
+}
+
+// Khôi phục lịch sử chat ngay khi trang tải xong
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initGlobalAiChatHistory);
+} else {
+  initGlobalAiChatHistory();
 }
 
 function escapeHtmlChat(str) {
@@ -252,8 +359,21 @@ function escapeHtmlChat(str) {
 }
 
 function formatAiAnswer(text) {
-  // Convert newlines to <br> and preserve basic formatting
-  return escapeHtmlChat(text).replace(/\n/g, '<br>');
+  if (!text) return '';
+  let html = escapeHtmlChat(text);
+  // Bold: **text**
+  html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  // Italic: *text*
+  html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+  // Inline code: `code`
+  html = html.replace(/`([^`]+)`/g, '<code class="bg-indigo-50 dark:bg-slate-700 text-indigo-700 dark:text-indigo-300 px-1 py-0.5 rounded text-xs">$1</code>');
+  // Bullet points: lines starting with "- " or "* "
+  html = html.replace(/(?:^|<br>)[-*]\s+(.*?)(?=(?:<br>|$))/g, '<br>• $1');
+  // Numbered points: lines starting with "1. "
+  html = html.replace(/(?:^|<br>)(\d+)\.\s+(.*?)(?=(?:<br>|$))/g, '<br><b>$1.</b> $2');
+  // Line breaks
+  html = html.replace(/\n/g, '<br>');
+  return html;
 }
 
 window.__aiGlobalSessionId = null;

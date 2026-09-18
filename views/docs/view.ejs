@@ -162,20 +162,21 @@
         <% } else { %>
           <div
             class="text-center py-8 bg-white/50 dark:bg-slate-800/50 rounded-xl border border-indigo-100 dark:border-indigo-800 mb-2">
-            <p class="text-sm text-slate-500 dark:text-slate-400 mb-4" id="no-summary-text">Đang tự động tạo hoặc chưa
-              có tóm tắt cho tài liệu này (nhấn F5 để thử lại sau ít giây).</p>
-            <% if (user && user.role==='admin' ) { %>
+            <p class="text-sm text-slate-500 dark:text-slate-400 mb-4" id="no-summary-text">
+              Chưa có bản tóm tắt tự động cho tài liệu này.
+            </p>
+            <% if (user && user.role === 'admin') { %>
               <button onclick="generateSummary(<%= doc.id %>)" id="btn-generate-summary"
                 class="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-all hover:bg-indigo-700 hover:shadow-md active:scale-95">
                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round"
                     d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 0 0-2.455 2.456Z" />
                 </svg>
-                Tạo thủ công
+                ✨ Kích hoạt AI tóm tắt
               </button>
-              <% } %>
+            <% } %>
           </div>
-          <% } %>
+        <% } %>
     </div>
 
     <!-- Loading state -->
@@ -194,6 +195,9 @@
   <!-- ================= Full Document Viewer ================= -->
   <% 
     var iframeSrc = '/docs/' + doc.id + '/view';
+    if (typeof highlight !== 'undefined' && highlight) {
+      iframeSrc += '?highlight=' + encodeURIComponent(highlight) + '#search=' + encodeURIComponent(highlight);
+    }
     var isLink = doc.stored_filename.startsWith('http://') || doc.stored_filename.startsWith('https://');
     if (isLink) {
       var url = doc.stored_filename;
@@ -210,6 +214,32 @@
       }
     }
   %>
+
+  <% if (typeof highlight !== 'undefined' && highlight) { %>
+    <div class="mt-4 p-4 bg-gradient-to-r from-amber-50 to-yellow-50 dark:from-amber-950/40 dark:to-yellow-950/30 border-2 border-amber-300 dark:border-amber-700 rounded-2xl shadow-sm transition-all">
+      <div class="flex items-start justify-between gap-4">
+        <div class="flex items-start gap-3 min-w-0">
+          <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-200 dark:bg-amber-900/60 text-amber-900 dark:text-amber-200 text-lg shadow-sm">
+            🎯
+          </div>
+          <div class="min-w-0">
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-bold uppercase tracking-wider text-amber-800 dark:text-amber-300">Căn cứ trích dẫn câu trả lời từ AI</span>
+              <span class="inline-flex items-center rounded-full bg-amber-200/80 dark:bg-amber-900 px-2 py-0.5 text-[10px] font-bold text-amber-900 dark:text-amber-200">Đã định vị bên dưới</span>
+            </div>
+            <p class="mt-1.5 text-sm font-semibold text-slate-800 dark:text-slate-100 leading-relaxed italic bg-white/80 dark:bg-slate-800/80 p-3 rounded-xl border border-amber-200/70 dark:border-amber-800/50 shadow-inner">
+              "<%= highlight %>"
+            </p>
+          </div>
+        </div>
+        <a href="/docs/<%= doc.id %>" class="shrink-0 inline-flex items-center gap-1 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-rose-600 hover:border-rose-300 dark:hover:text-rose-400 shadow-sm transition-all" title="Bỏ tô sáng">
+          <span>Bỏ tô sáng</span>
+          <span>✕</span>
+        </a>
+      </div>
+    </div>
+  <% } %>
+
   <div id="view-full"
     class="block mt-5 overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-900 shadow-inner">
     <% if (isLink) { %>
@@ -250,17 +280,23 @@
     style="height: 80vh;">
     <!-- Header -->
     <div
-      class="flex items-center gap-3 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 px-5 py-4">
-      <div class="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 text-indigo-600">
-        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round"
-            d="M12 20.25c4.97 0 9-3.694 9-8.25s-4.03-8.25-9-8.25S3 7.444 3 12c0 2.104.859 4.023 2.273 5.48.432.447.74 1.04.586 1.641a4.483 4.483 0 0 1-.923 1.785A5.969 5.969 0 0 0 6 21c1.282 0 2.47-.402 3.445-1.087.81.22 1.668.337 2.555.337Z" />
-        </svg>
+      class="flex items-center justify-between bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 px-5 py-3">
+      <div class="flex items-center gap-3">
+        <div class="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-100 text-indigo-600">
+          <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round"
+              d="M12 20.25c4.97 0 9-3.694 9-8.25s-4.03-8.25-9-8.25S3 7.444 3 12c0 2.104.859 4.023 2.273 5.48.432.447.74 1.04.586 1.641a4.483 4.483 0 0 1-.923 1.785A5.969 5.969 0 0 0 6 21c1.282 0 2.47-.402 3.445-1.087.81.22 1.668.337 2.555.337Z" />
+          </svg>
+        </div>
+        <div>
+          <h3 class="text-sm font-bold text-slate-800 dark:text-slate-100">AI Hỏi đáp</h3>
+          <p class="text-xs text-slate-500 dark:text-slate-400">Hỏi đáp trực tiếp nội dung trong tài liệu này</p>
+        </div>
       </div>
-      <div>
-        <h3 class="text-base font-bold text-slate-800 dark:text-slate-100">AI Hỏi đáp</h3>
-        <p class="text-xs text-slate-500 dark:text-slate-400">Hỏi đáp trực tiếp nội dung trong tài liệu này</p>
-      </div>
+      <button onclick="clearDocChatHistory()" class="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 px-2 py-1 rounded transition-colors" title="Xóa lịch sử hội thoại tài liệu này trong phiên">
+        <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" /></svg>
+        Xóa lịch sử
+      </button>
     </div>
 
     <!-- Messages -->
@@ -295,9 +331,132 @@
     </div>
   </div>
 
+  <!-- ================= Document Comments Section ================= -->
+  <div class="mt-8 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6 shadow-sm" id="comments-section">
+    <!-- Header -->
+    <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-700/60 pb-4 mb-6">
+      <div class="flex items-center gap-2.5">
+        <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-50 dark:bg-brand-950/50 text-brand-600 dark:text-brand-400">
+          <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 0 1 .865-.502 49.188 49.188 0 0 0 3.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0 0 12 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v4.77Z" />
+          </svg>
+        </div>
+        <div>
+          <h2 class="text-base font-bold text-slate-800 dark:text-slate-100">Bình luận & Thảo luận</h2>
+          <p class="text-xs text-slate-500 dark:text-slate-400"><span id="comments-count-title"><%= (typeof comments !== 'undefined' ? comments.length : 0) %></span> bình luận cho tài liệu này</p>
+        </div>
+      </div>
+      <span id="comments-count-badge" class="rounded-full bg-slate-100 dark:bg-slate-700 px-3 py-1 text-xs font-semibold text-slate-600 dark:text-slate-300">
+        <%= (typeof comments !== 'undefined' ? comments.length : 0) %>
+      </span>
+    </div>
 
-  <% if (user && user.role==='admin' ) { %>
+    <!-- Comment Form or Login Notice -->
+    <% if (user) { %>
+      <form id="comment-form" onsubmit="submitComment(event)" class="mb-8">
+        <div class="flex gap-3">
+          <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-600 font-bold text-white text-sm shadow-sm">
+            <%= (user.full_name || user.username).charAt(0).toUpperCase() %>
+          </div>
+          <div class="flex-1">
+            <div class="relative rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 focus-within:border-brand-500 focus-within:bg-white dark:focus-within:bg-slate-800 focus-within:ring-2 focus-within:ring-brand-100 dark:focus-within:ring-brand-900/30 transition-all">
+              <textarea id="comment-input" name="content" rows="3" required placeholder="Viết ý kiến hoặc ghi chú của bạn về tài liệu này..." class="w-full resize-none bg-transparent px-4 py-3 text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none"></textarea>
+              <div class="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 dark:border-slate-800 px-3 py-2 bg-slate-50/50 dark:bg-slate-900/50 rounded-b-xl">
+                <span class="text-xs text-slate-400">
+                  Nhấn <kbd class="px-1.5 py-0.5 text-[10px] font-semibold bg-slate-200 dark:bg-slate-700 rounded border border-slate-300 dark:border-slate-600">Enter</kbd> để gửi, <kbd class="px-1.5 py-0.5 text-[10px] font-semibold bg-slate-200 dark:bg-slate-700 rounded border border-slate-300 dark:border-slate-600">Shift+Enter</kbd> để xuống dòng
+                </span>
+                <button type="submit" id="comment-submit-btn" class="inline-flex items-center gap-1.5 rounded-lg bg-brand-600 hover:bg-brand-700 px-4 py-1.5 text-xs font-semibold text-white shadow-sm transition-all active:scale-95 disabled:opacity-50">
+                  <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5" />
+                  </svg>
+                  Gửi bình luận
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </form>
+    <% } else { %>
+      <div class="mb-8 p-4 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-900/50 text-center flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div class="flex items-center gap-3 text-left">
+          <span class="text-2xl">🔒</span>
+          <div>
+            <p class="text-sm font-semibold text-slate-700 dark:text-slate-200">Bạn cần đăng nhập để tham gia bình luận</p>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Khách chỉ có thể đọc nội dung bình luận đã có.</p>
+          </div>
+        </div>
+        <a href="/login?next=<%= encodeURIComponent('/docs/' + doc.id + '#comments-section') %>" class="inline-flex items-center gap-1.5 rounded-lg bg-brand-600 hover:bg-brand-700 px-4 py-2 text-xs font-semibold text-white shadow-sm transition-all active:scale-95 shrink-0">
+          Đăng nhập ngay
+        </a>
+      </div>
+    <% } %>
+
+    <!-- Comments List -->
+    <% if (typeof comments === 'undefined' || comments.length === 0) { %>
+      <div id="no-comments-placeholder" class="py-10 text-center text-slate-400 dark:text-slate-500">
+        <svg class="h-10 w-10 mx-auto mb-2 text-slate-300 dark:text-slate-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 0 1-2.555-.337A5.972 5.972 0 0 1 5.41 21c-.496 0-.89-.408-.89-.91 0-.16.036-.316.104-.457A5.98 5.98 0 0 0 6 16.5c0-.62-.128-1.21-.36-1.748C4.545 13.57 4 12.02 4 10.375 4 5.75 8.03 2 13 2s9 3.75 9 8.375Z" />
+        </svg>
+        <p class="text-sm">Chưa có bình luận nào cho tài liệu này.</p>
+        <p class="text-xs text-slate-400 mt-0.5">Hãy là người đầu tiên để lại ý kiến!</p>
+      </div>
+      <div id="comments-list-container" class="space-y-4"></div>
+    <% } else { %>
+      <div id="comments-list-container" class="space-y-4">
+        <% comments.forEach(c => { %>
+          <div id="comment-item-<%= c.id %>" class="flex gap-3.5 p-4 rounded-xl border border-slate-100 dark:border-slate-700/60 bg-slate-50/50 dark:bg-slate-900/40 hover:bg-slate-50 dark:hover:bg-slate-900/70 transition-colors group">
+            <!-- Avatar -->
+            <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-brand-500 to-indigo-600 text-white font-bold text-xs shadow-sm">
+              <%= (c.full_name || c.username).charAt(0).toUpperCase() %>
+            </div>
+            <!-- Content -->
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center justify-between gap-2">
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="text-sm font-semibold text-slate-800 dark:text-slate-100">
+                    <%= c.full_name || c.username %>
+                  </span>
+                  <% if (c.role === 'admin') { %>
+                    <span class="rounded bg-rose-100 dark:bg-rose-950/60 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">Quản trị viên</span>
+                  <% } %>
+                  <% if (c.department_name || c.khoa_name) { %>
+                    <span class="rounded bg-slate-200/80 dark:bg-slate-800 px-1.5 py-0.5 text-[10px] font-medium text-slate-600 dark:text-slate-300"><%= c.department_name || c.khoa_name %></span>
+                  <% } %>
+                  <span class="text-xs text-slate-400">
+                    • <%= c.created_at ? new Date(c.created_at + 'Z').toLocaleString('vi-VN', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '' %>
+                  </span>
+                </div>
+                <!-- Delete action if authorized -->
+                <% if (user && (user.role === 'admin' || user.id === c.user_id)) { %>
+                  <button type="button" onclick="deleteComment(<%= c.id %>)" class="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30" title="Xóa bình luận">
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                    </svg>
+                  </button>
+                <% } %>
+              </div>
+              <p class="mt-1.5 text-sm text-slate-700 dark:text-slate-300 whitespace-pre-line leading-relaxed"><%= c.content %></p>
+            </div>
+          </div>
+        <% }) %>
+      </div>
+    <% } %>
+  </div>
+
+
     <script>
+      function formatDocAiAnswer(text) {
+        if (!text) return '';
+        let html = escapeHtml(text);
+        html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+        html = html.replace(/`([^`]+)`/g, '<code class="bg-slate-100 dark:bg-slate-700 px-1 py-0.5 rounded text-xs">$1</code>');
+        html = html.replace(/(?:^|<br>)[-*]\s+(.*?)(?=(?:<br>|$))/g, '<br>• $1');
+        html = html.replace(/(?:^|<br>)(\d+)\.\s+(.*?)(?=(?:<br>|$))/g, '<br><b>$1.</b> $2');
+        html = html.replace(/\n/g, '<br>');
+        return html;
+      }
+
       async function generateSummary(docId) {
         const contentEl = document.getElementById('summary-content');
         const loadingEl = document.getElementById('summary-loading');
@@ -316,11 +475,11 @@
 
           loadingEl.classList.add('hidden');
           contentEl.classList.remove('hidden');
-          contentEl.innerHTML = '<p class="text-sm text-slate-700 leading-relaxed">' + escapeHtml(data.summary) + '</p>';
+          contentEl.innerHTML = '<div class="prose prose-sm prose-indigo max-w-none bg-white/60 dark:bg-slate-800/80 p-4 rounded-xl border border-indigo-100/50 dark:border-indigo-800/50 leading-relaxed text-slate-700 dark:text-slate-200">' + formatDocAiAnswer(data.summary) + '</div>';
 
           actionsEl.innerHTML = `
       <button onclick="regenerateSummary(${docId})"
-        class="inline-flex items-center gap-1 rounded-lg border border-indigo-300 bg-white px-2.5 py-1 text-xs font-medium text-indigo-600 transition-all hover:bg-indigo-100 hover:shadow-sm"
+        class="inline-flex items-center gap-1 rounded-lg border border-indigo-300 dark:border-indigo-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-medium text-indigo-600 dark:text-indigo-400 transition-all hover:bg-indigo-100 dark:hover:bg-indigo-900 hover:shadow-sm"
         title="Tạo lại tóm tắt">
         <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182"/></svg>
         Tạo lại
@@ -344,40 +503,111 @@
         d.textContent = str;
         return d.innerHTML;
       }
-    </script>
-    <% } %>
 
-      <script>
-        function switchTab(tab) {
-          const btnFull = document.getElementById('tab-full');
-          const btnSummary = document.getElementById('tab-summary');
-          const btnChat = document.getElementById('tab-chat');
-          const viewFull = document.getElementById('view-full');
-          const viewSummary = document.getElementById('view-summary');
-          const viewChat = document.getElementById('view-chat');
+      function switchTab(tab) {
+        const btnFull = document.getElementById('tab-full');
+        const btnSummary = document.getElementById('tab-summary');
+        const btnChat = document.getElementById('tab-chat');
+        const viewFull = document.getElementById('view-full');
+        const viewSummary = document.getElementById('view-summary');
+        const viewChat = document.getElementById('view-chat');
 
-          // Xóa mọi active + hiển thị trước
-          viewFull.classList.remove('block'); viewFull.classList.add('hidden');
-          viewSummary.classList.remove('block'); viewSummary.classList.add('hidden');
-          viewChat.classList.remove('block', 'flex'); viewChat.classList.add('hidden');
+        // Xóa mọi active + hiển thị trước
+        viewFull.classList.remove('block'); viewFull.classList.add('hidden');
+        viewSummary.classList.remove('block'); viewSummary.classList.add('hidden');
+        viewChat.classList.remove('block', 'flex'); viewChat.classList.add('hidden');
 
-          btnFull.className = "w-1/3 py-3 px-2 text-center border-b-2 border-transparent font-medium text-sm text-slate-500 hover:text-slate-700 hover:border-slate-300 transition-all";
-          btnSummary.className = "w-1/3 py-3 px-2 text-center border-b-2 border-transparent font-medium text-sm text-slate-500 hover:text-slate-700 hover:border-slate-300 transition-all";
-          btnChat.className = "w-1/3 py-3 px-2 text-center border-b-2 border-transparent font-medium text-sm text-slate-500 hover:text-slate-700 hover:border-slate-300 transition-all";
+        btnFull.className = "w-1/3 py-3 px-2 text-center border-b-2 border-transparent font-medium text-sm text-slate-500 hover:text-slate-700 hover:border-slate-300 transition-all";
+        btnSummary.className = "w-1/3 py-3 px-2 text-center border-b-2 border-transparent font-medium text-sm text-slate-500 hover:text-slate-700 hover:border-slate-300 transition-all";
+        btnChat.className = "w-1/3 py-3 px-2 text-center border-b-2 border-transparent font-medium text-sm text-slate-500 hover:text-slate-700 hover:border-slate-300 transition-all";
 
-          if (tab === 'full') {
-            viewFull.classList.remove('hidden'); viewFull.classList.add('block');
-            btnFull.className = "w-1/3 py-3 px-2 text-center border-b-2 font-medium text-sm transition-all border-brand-600 text-brand-600 bg-brand-50";
-          } else if (tab === 'summary') {
-            viewSummary.classList.remove('hidden'); viewSummary.classList.add('block');
-            btnSummary.className = "w-1/3 py-3 px-2 text-center border-b-2 font-medium text-sm transition-all border-indigo-500 text-indigo-600 bg-indigo-50";
-          } else if (tab === 'chat') {
-            viewChat.classList.remove('hidden'); viewChat.classList.add('flex');
-            btnChat.className = "w-1/3 py-3 px-2 text-center border-b-2 font-medium text-sm transition-all border-pink-500 text-pink-600 bg-pink-50";
+        if (tab === 'full') {
+          viewFull.classList.remove('hidden'); viewFull.classList.add('block');
+          btnFull.className = "w-1/3 py-3 px-2 text-center border-b-2 font-medium text-sm transition-all border-brand-600 text-brand-600 bg-brand-50";
+        } else if (tab === 'summary') {
+          viewSummary.classList.remove('hidden'); viewSummary.classList.add('block');
+          btnSummary.className = "w-1/3 py-3 px-2 text-center border-b-2 font-medium text-sm transition-all border-indigo-500 text-indigo-600 bg-indigo-50";
+        } else if (tab === 'chat') {
+          viewChat.classList.remove('hidden'); viewChat.classList.add('flex');
+          btnChat.className = "w-1/3 py-3 px-2 text-center border-b-2 font-medium text-sm transition-all border-pink-500 text-pink-600 bg-pink-50";
+        }
+      }
+
+        // --- Logic Chat trực tiếp vào tài liệu này (NotebookLM với Session History) ---
+        const DOC_CHAT_KEY = 'docs_chat_doc_' + <%= doc.id %>;
+
+        function getDocChatHistory() {
+          try {
+            const raw = sessionStorage.getItem(DOC_CHAT_KEY);
+            return raw ? JSON.parse(raw) : [];
+          } catch(e) {
+            return [];
           }
         }
 
-        // Logic Chat trực tiếp vào tài liệu này (NotebookLM)
+        function saveDocChatMessage(msg) {
+          try {
+            const list = getDocChatHistory();
+            list.push(msg);
+            if (list.length > 50) list.shift();
+            sessionStorage.setItem(DOC_CHAT_KEY, JSON.stringify(list));
+          } catch(e) {}
+        }
+
+        function clearDocChatHistory() {
+          if (confirm('Bạn có muốn xóa toàn bộ lịch sử hỏi đáp AI về tài liệu này trong phiên hiện tại?')) {
+            sessionStorage.removeItem(DOC_CHAT_KEY);
+            const container = document.getElementById('doc-chat-messages');
+            container.innerHTML = `
+              <div class="flex gap-3">
+                <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-100">
+                  <span class="text-sm">🤖</span>
+                </div>
+                <div class="rounded-2xl rounded-tl-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm px-4 py-3 text-sm text-slate-700 dark:text-slate-200 max-w-[85%] relative">
+                  <p class="mb-2">Xin chào! Tôi có thể đọc và trả lời bất kỳ thông tin nào liên quan đến tài liệu <strong>"<%= doc.title %>"</strong>. Bạn muốn hỏi gì?</p>
+                  <button id="btn-tts-welcome" data-text="Xin chào! Tôi có thể đọc và trả lời bất kỳ thông tin nào liên quan đến tài liệu." onclick="speakText(this.dataset.text, this.id)" class="inline-flex items-center gap-1 text-xs font-medium text-brand-600 bg-brand-50 hover:bg-brand-100 dark:bg-slate-700 dark:text-brand-400 dark:hover:bg-slate-600 px-2 py-1 rounded transition-colors" title="Đọc văn bản">
+                    <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.5-.62-1.5-1.5v-4.5c0-.88.62-1.5 1.5-1.5h2.24Z"/></svg>
+                    Nghe đáp án
+                  </button>
+                </div>
+              </div>`;
+          }
+        }
+
+        function appendDocChatMessage(role, content, saveToStorage = true) {
+          const container = document.getElementById('doc-chat-messages');
+          if (!container) return;
+
+          const msgDiv = document.createElement('div');
+          if (role === 'user') {
+            msgDiv.className = 'flex justify-end gap-3 ai-msg-animate';
+            msgDiv.innerHTML = `<div class="rounded-2xl rounded-tr-sm bg-indigo-600 px-4 py-3 text-sm text-white shadow-sm max-w-[85%]">${escapeHtml(content)}</div>`;
+          } else {
+            msgDiv.className = 'flex gap-3 ai-msg-animate';
+            const formatted = formatDocAiAnswer(content);
+            const cleanAnswer = content.replace(/"/g, '&quot;');
+            const btnId = 'btn-tts-' + Date.now() + Math.floor(Math.random() * 1000);
+            msgDiv.innerHTML = `
+              <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-100">
+                <span class="text-sm">🤖</span>
+              </div>
+              <div class="rounded-2xl rounded-tl-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm px-4 py-3 text-sm text-slate-700 dark:text-slate-200 max-w-[85%] leading-relaxed relative">
+                <div class="mb-2">${formatted}</div>
+                <button id="${btnId}" data-text="${cleanAnswer}" onclick="speakText(this.dataset.text, this.id)" class="inline-flex items-center gap-1 text-xs font-medium text-brand-600 bg-brand-50 hover:bg-brand-100 dark:bg-slate-700 dark:text-brand-400 dark:hover:bg-slate-600 px-2 py-1 rounded transition-colors" title="Đọc toàn bộ câu trả lời">
+                  <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.5-.62-1.5-1.5v-4.5c0-.88.62-1.5 1.5-1.5h2.24Z"/></svg>
+                  Nghe đáp án
+                </button>
+              </div>`;
+          }
+
+          container.appendChild(msgDiv);
+          container.scrollTop = container.scrollHeight;
+
+          if (saveToStorage) {
+            saveDocChatMessage({ role, content });
+          }
+        }
+
         async function sendDocChat(e) {
           e.preventDefault();
           const input = document.getElementById('doc-chat-input');
@@ -386,12 +616,8 @@
           const question = input.value.trim();
           if (!question) return;
 
-          // Add User msg
-          const userMsg = document.createElement('div');
-          userMsg.className = 'flex justify-end gap-3 ai-msg-animate';
-          userMsg.innerHTML = `<div class="rounded-2xl rounded-tr-sm bg-indigo-600 px-4 py-3 text-sm text-white shadow-sm max-w-[85%]">${escapeHtml(question)}</div>`;
-          container.appendChild(userMsg);
-          container.scrollTop = container.scrollHeight;
+          // Thêm và lưu tin nhắn của người dùng
+          appendDocChatMessage('user', question, true);
 
           input.value = '';
           input.disabled = true;
@@ -403,14 +629,14 @@
           thinkingWait.id = thinkingId;
           thinkingWait.className = 'flex gap-3 ai-msg-animate';
           thinkingWait.innerHTML = `
-    <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-100">
-      <span class="text-sm">🤖</span>
-    </div>
-    <div class="rounded-2xl rounded-tl-sm bg-white border border-slate-200 shadow-sm px-4 py-3 flex items-center gap-1.5">
-      <span class="h-2 w-2 rounded-full bg-indigo-400 animate-bounce" style="animation-delay:0ms"></span>
-      <span class="h-2 w-2 rounded-full bg-indigo-400 animate-bounce" style="animation-delay:150ms"></span>
-      <span class="h-2 w-2 rounded-full bg-indigo-400 animate-bounce" style="animation-delay:300ms"></span>
-    </div>`;
+            <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-100">
+              <span class="text-sm">🤖</span>
+            </div>
+            <div class="rounded-2xl rounded-tl-sm bg-white border border-slate-200 shadow-sm px-4 py-3 flex items-center gap-1.5">
+              <span class="h-2 w-2 rounded-full bg-indigo-400 animate-bounce" style="animation-delay:0ms"></span>
+              <span class="h-2 w-2 rounded-full bg-indigo-400 animate-bounce" style="animation-delay:150ms"></span>
+              <span class="h-2 w-2 rounded-full bg-indigo-400 animate-bounce" style="animation-delay:300ms"></span>
+            </div>`;
           container.appendChild(thinkingWait);
           container.scrollTop = container.scrollHeight;
 
@@ -422,44 +648,199 @@
               body: JSON.stringify({ question, docId })
             });
             const data = await resp.json();
-            document.getElementById(thinkingId).remove();
-
-            const aiMsg = document.createElement('div');
-            aiMsg.className = 'flex gap-3 ai-msg-animate';
+            document.getElementById(thinkingId)?.remove();
 
             if (!resp.ok) {
-              aiMsg.innerHTML = `<div class="rounded-2xl rounded-tl-sm bg-red-50 border border-red-100 px-4 py-3 text-sm text-red-600 max-w-[85%]">⚠️ Lỗi: ${escapeHtml(data.error || 'Không xác định')}</div>`;
+              const errText = '⚠️ Lỗi: ' + (data.error || 'Không xác định');
+              appendDocChatMessage('ai', errText, true);
             } else {
-              const formatted = escapeHtml(data.answer).replace(/\n/g, '<br>');
-              // Clean answer cho việc đọc TTS
-              const cleanAnswer = data.answer.replace(/"/g, '&quot;');
-              const btnId = 'btn-tts-' + Date.now();
-              aiMsg.innerHTML = `
-      <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-100">
-        <span class="text-sm">🤖</span>
-      </div>
-      <div class="rounded-2xl rounded-tl-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm px-4 py-3 text-sm text-slate-700 dark:text-slate-200 max-w-[85%] leading-relaxed relative">
-        <div class="mb-2">${formatted}</div>
-        <button id="${btnId}" data-text="${cleanAnswer}" onclick="speakText(this.dataset.text, this.id)" class="inline-flex items-center gap-1 text-xs font-medium text-brand-600 bg-brand-50 hover:bg-brand-100 dark:bg-slate-700 dark:text-brand-400 dark:hover:bg-slate-600 px-2 py-1 rounded transition-colors" title="Đọc toàn bộ câu trả lời">
-          <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.5-.62-1.5-1.5v-4.5c0-.88.62-1.5 1.5-1.5h2.24Z"/></svg>
-          Nghe đáp án
-        </button>
-      </div>`;
+              appendDocChatMessage('ai', data.answer, true);
             }
-
-            container.appendChild(aiMsg);
           } catch (err) {
             document.getElementById(thinkingId)?.remove();
-            const errMsg = document.createElement('div');
-            errMsg.className = 'flex gap-3 ai-msg-animate';
-            errMsg.innerHTML = `<div class="rounded-2xl rounded-tl-sm bg-red-50 border border-red-100 px-4 py-3 text-sm text-red-600 max-w-[85%]">⚠️ Lỗi mạng: ${escapeHtml(err.message)}</div>`;
-            container.appendChild(errMsg);
+            appendDocChatMessage('ai', '⚠️ Lỗi mạng: ' + err.message, true);
           }
 
-          container.scrollTop = container.scrollHeight;
           input.disabled = false;
           sendBtn.disabled = false;
           input.focus();
+        }
+
+        function initDocChatHistory() {
+          const history = getDocChatHistory();
+          if (history && history.length > 0) {
+            history.forEach(item => {
+              appendDocChatMessage(item.role, item.content, false);
+            });
+          }
+        }
+
+        // --- Xử lý sự kiện gõ Enter gửi bình luận, Shift+Enter xuống dòng ---
+        const commentInput = document.getElementById('comment-input');
+        if (commentInput) {
+          commentInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+              if (e.shiftKey) {
+                // Chỉ cho phép Shift+Enter để xuống dòng
+                return;
+              }
+              e.preventDefault(); // Không xuống dòng, gửi luôn
+              submitComment(e);
+            }
+          });
+        }
+
+        // --- Gửi bình luận không tải lại trang (AJAX) ---
+        async function submitComment(e) {
+          if (e && e.preventDefault) e.preventDefault();
+          const input = document.getElementById('comment-input');
+          const btn = document.getElementById('comment-submit-btn');
+          if (!input || !btn) return;
+
+          const content = input.value.trim();
+          if (!content) return;
+
+          btn.disabled = true;
+          const originalBtnHtml = btn.innerHTML;
+          btn.innerHTML = `<span class="inline-flex items-center gap-1"><span class="h-2 w-2 rounded-full bg-white animate-bounce" style="animation-delay:0ms"></span><span class="h-2 w-2 rounded-full bg-white animate-bounce" style="animation-delay:150ms"></span><span class="h-2 w-2 rounded-full bg-white animate-bounce" style="animation-delay:300ms"></span> Đang gửi...</span>`;
+
+          try {
+            const docId = <%= doc.id %>;
+            const resp = await fetch('/docs/' + docId + '/comments', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+              },
+              body: JSON.stringify({ content })
+            });
+            const data = await resp.json();
+            if (!resp.ok) {
+              alert(data.error || 'Không thể gửi bình luận.');
+              return;
+            }
+
+            input.value = '';
+            appendCommentToDOM(data.comment, data.currentUserId, data.currentUserRole);
+            updateCommentsCount(1);
+          } catch (err) {
+            alert('Lỗi kết nối khi gửi bình luận: ' + err.message);
+          } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalBtnHtml;
+            input.focus();
+          }
+        }
+
+        // --- Xóa bình luận không tải lại trang (AJAX) ---
+        async function deleteComment(commentId) {
+          if (!confirm('Bạn có chắc muốn xóa bình luận này không?')) return;
+          try {
+            const docId = <%= doc.id %>;
+            const resp = await fetch('/docs/' + docId + '/comments/' + commentId + '/delete', {
+              method: 'POST',
+              headers: {
+                'Accept': 'application/json'
+              }
+            });
+            const data = await resp.json();
+            if (!resp.ok) {
+              alert(data.error || 'Không thể xóa bình luận.');
+              return;
+            }
+
+            const itemEl = document.getElementById('comment-item-' + commentId);
+            if (itemEl) {
+              itemEl.style.transition = 'all 0.25s ease';
+              itemEl.style.opacity = '0';
+              itemEl.style.transform = 'translateY(-8px)';
+              setTimeout(() => {
+                itemEl.remove();
+                updateCommentsCount(-1);
+              }, 250);
+            }
+          } catch (err) {
+            alert('Lỗi kết nối khi xóa bình luận: ' + err.message);
+          }
+        }
+
+        function updateCommentsCount(delta) {
+          const badge = document.getElementById('comments-count-badge');
+          const title = document.getElementById('comments-count-title');
+          let current = parseInt(badge ? badge.textContent : '0', 10) || 0;
+          let next = Math.max(0, current + delta);
+          if (badge) badge.textContent = next;
+          if (title) title.textContent = next;
+
+          const listContainer = document.getElementById('comments-list-container');
+          const section = document.getElementById('comments-section');
+          if (next === 0 && listContainer) {
+            listContainer.innerHTML = `
+              <div id="no-comments-placeholder" class="py-10 text-center text-slate-400 dark:text-slate-500">
+                <svg class="h-10 w-10 mx-auto mb-2 text-slate-300 dark:text-slate-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 0 1-2.555-.337A5.972 5.972 0 0 1 5.41 21c-.496 0-.89-.408-.89-.91 0-.16.036-.316.104-.457A5.98 5.98 0 0 0 6 16.5c0-.62-.128-1.21-.36-1.748C4.545 13.57 4 12.02 4 10.375 4 5.75 8.03 2 13 2s9 3.75 9 8.375Z" />
+                </svg>
+                <p class="text-sm">Chưa có bình luận nào cho tài liệu này.</p>
+                <p class="text-xs text-slate-400 mt-0.5">Hãy là người đầu tiên để lại ý kiến!</p>
+              </div>`;
+          }
+        }
+
+        function appendCommentToDOM(c, currentUserId, currentUserRole) {
+          const placeholder = document.getElementById('no-comments-placeholder');
+          if (placeholder) placeholder.remove();
+
+          let list = document.getElementById('comments-list-container');
+          if (!list) {
+            list = document.createElement('div');
+            list.id = 'comments-list-container';
+            list.className = 'space-y-4';
+            document.getElementById('comments-section').appendChild(list);
+          }
+
+          const div = document.createElement('div');
+          div.id = 'comment-item-' + c.id;
+          div.className = 'flex gap-3.5 p-4 rounded-xl border border-slate-100 dark:border-slate-700/60 bg-slate-50/50 dark:bg-slate-900/40 hover:bg-slate-50 dark:hover:bg-slate-900/70 transition-colors group ai-msg-animate';
+
+          const initial = (c.username || 'U').charAt(0).toUpperCase();
+          const roleBadge = c.role === 'admin' ? '<span class="rounded bg-rose-100 dark:bg-rose-950/60 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">Quản trị viên</span>' : '';
+          const deptName = c.department_name || c.khoa_name;
+          const deptBadge = deptName ? `<span class="rounded bg-slate-200/80 dark:bg-slate-800 px-1.5 py-0.5 text-[10px] font-medium text-slate-600 dark:text-slate-300">${escapeHtml(deptName)}</span>` : '';
+          const dateStr = new Date().toLocaleString('vi-VN', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+
+          const canDelete = currentUserRole === 'admin' || currentUserId === c.user_id;
+          const deleteBtn = canDelete ? `
+            <button type="button" onclick="deleteComment(${c.id})" class="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors" title="Xóa bình luận">
+              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+              </svg>
+            </button>` : '';
+
+          div.innerHTML = `
+            <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-brand-500 to-indigo-600 text-white font-bold text-xs shadow-sm">
+              ${escapeHtml(initial)}
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center justify-between gap-2">
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="text-sm font-semibold text-slate-800 dark:text-slate-100">${escapeHtml(c.username)}</span>
+                  ${roleBadge}
+                  ${deptBadge}
+                  <span class="text-xs text-slate-400">• ${dateStr}</span>
+                </div>
+                ${deleteBtn}
+              </div>
+              <p class="mt-1.5 text-sm text-slate-700 dark:text-slate-300 whitespace-pre-line leading-relaxed">${escapeHtml(c.content)}</p>
+            </div>`;
+
+          list.appendChild(div);
+        }
+
+        // Khôi phục lịch sử chat của tài liệu khi tải trang
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', initDocChatHistory);
+        } else {
+          initDocChatHistory();
         }
 
         // Quản lý phiên để hủy bỏ các lệnh đọc trùng lặp
