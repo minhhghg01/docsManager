@@ -294,7 +294,7 @@ router.post('/users', express.urlencoded({ extended: true }), (req, res) => {
 
 router.post('/users/:id/edit', express.urlencoded({ extended: true }), (req, res) => {
   const id = parseInt(req.params.id, 10);
-  const { role, khoa_id } = req.body;
+  const { role, khoa_id, password } = req.body;
 
   const targetUser = db.prepare('SELECT * FROM users WHERE id = ?').get(id);
   if (!targetUser) {
@@ -315,12 +315,23 @@ router.post('/users/:id/edit', express.urlencoded({ extended: true }), (req, res
 
   const kid = finalRole === 'admin' ? null : (khoa_id && String(khoa_id).trim() ? parseInt(khoa_id, 10) : null);
 
-  db.prepare('UPDATE users SET role = ?, khoa_id = ? WHERE id = ?').run(finalRole, kid, id);
+  // Nếu có nhập mật khẩu mới
+  if (password && password.trim()) {
+    if (!PW_REGEX.test(password.trim())) {
+      return res.redirect('/admin/users?error=' + encodeURIComponent(PW_MSG));
+    }
+    const hash = bcrypt.hashSync(password.trim(), 10);
+    db.prepare('UPDATE users SET role = ?, khoa_id = ?, password_hash = ? WHERE id = ?').run(finalRole, kid, hash, id);
+  } else {
+    db.prepare('UPDATE users SET role = ?, khoa_id = ? WHERE id = ?').run(finalRole, kid, id);
+  }
+
   if (typeof db.saveSync === 'function') db.saveSync();
 
   logActivity(req, 'UPDATE_USER', id, targetUser.username);
 
-  res.redirect('/admin/users?success=' + encodeURIComponent(`Đã cập nhật vai trò và khoa phòng cho tài khoản "${targetUser.username}".`));
+  const pwdMsg = password && password.trim() ? ' và mật khẩu' : '';
+  res.redirect('/admin/users?success=' + encodeURIComponent(`Đã cập nhật thông tin vai trò, khoa phòng${pwdMsg} cho tài khoản "${targetUser.username}".`));
 });
 
 router.post('/users/:id/delete', (req, res) => {

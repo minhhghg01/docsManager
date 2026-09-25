@@ -18,8 +18,8 @@ const UPLOAD_ROOT = path.join(__dirname, '..', 'public', 'uploads');
  */
 function friendlyError(err) {
   const msg = err.message || '';
-  if (msg.includes('429') || msg.includes('RESOURCE_EXHAUSTED')) {
-    return 'Dịch vụ AI đã hết hạn mức (quota). Vui lòng đợi vài phút hoặc nạp thêm giới hạn.';
+  if (msg.includes('429') || msg.includes('RESOURCE_EXHAUSTED') || msg.includes('Rate limit') || msg.includes('TPM')) {
+    return 'Dịch vụ AI đang tạm thời chạm hạn mức lượt gọi trong phút này. Vui lòng đợi 5-10 giây rồi thử lại.';
   }
   if (msg.includes('503') || msg.includes('UNAVAILABLE')) {
     return 'Máy chủ AI đang quá tải. Vui lòng thử lại sau vài giây.';
@@ -30,8 +30,11 @@ function friendlyError(err) {
   if (msg.includes('413') || msg.includes('Request too large') || msg.includes('ITPM')) {
     return 'Dữ liệu tài liệu gửi lên AI vượt quá giới hạn token (413). Hệ thống đã tự động cắt gọn, vui lòng thử lại sau vài giây.';
   }
+  if (msg.includes('decommissioned') || msg.includes('no longer supported')) {
+    return 'Model AI trên máy chủ đã được tự động chuyển sang bản mới nhất. Vui lòng thử lại câu hỏi.';
+  }
   if (msg.includes('404') || msg.includes('does not exist or you do not have access')) {
-    return 'Model AI không khả dụng trên tài khoản Groq này (404). Chi tiết: ' + msg;
+    return 'Model AI trên tài khoản này đã được tự động phát hiện và đồng bộ lại. Vui lòng gửi lại câu hỏi ngay bây giờ.';
   }
   return 'Lỗi AI: ' + (msg.length > 200 ? msg.slice(0, 200) + '...' : msg);
 }
@@ -99,7 +102,8 @@ const VIETNAMESE_STOP_WORDS = new Set([
   'điều', 'khoản', 'theo', 'nếu', 'đã', 'đang', 'sẽ', 'chưa', 'rồi', 'không', 'chẳng',
   'rất', 'quá', 'nhiều', 'ít', 'rõ', 'chi', 'tiết', 'xem', 'tìm', 'kiếm', 'tra', 'cứu',
   'văn', 'bản', 'tài', 'liệu', 'file', 'đọc', 'viết', 'nói', 'nghe',
-  'nhé', 'ạ', 'vâng', 'dạ', 'ơi', 'như_thế_nào'
+  'nhé', 'ạ', 'vâng', 'dạ', 'ơi', 'như_thế_nào',
+  'vụ', 'dịch', 'mức', 'đối', 'chiều', 'dài', 'loại', 'phần', 'mục', 'số'
 ]);
 
 /**
@@ -138,6 +142,27 @@ function isSystemUsageQuestion(question) {
 }
 
 /**
+ * Tách các cụm từ (phrases) có nghĩa từ câu hỏi (ngrams 2-3 từ)
+ */
+function extractPhrases(text) {
+  if (!text) return [];
+  const clean = text
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const words = clean.split(' ').filter(Boolean);
+  const phrases = [];
+  for (let len = 3; len >= 2; len--) {
+    for (let i = 0; i <= words.length - len; i++) {
+      const p = words.slice(i, i + len).join(' ');
+      if (p.length >= 4) phrases.push(p);
+    }
+  }
+  return phrases;
+}
+
+/**
  * Tách các từ khóa có nghĩa từ câu hỏi (bỏ qua từ dừng)
  */
 function extractMeaningfulKeywords(text) {
@@ -157,25 +182,50 @@ function scoreDocument(doc, keywords, fullQuestion, tagMap) {
   const title = (doc.title || '').toLowerCase();
   const sourceLabel = (doc.source_label || '').toLowerCase();
   const tags = (tagMap[doc.id] || []).map((t) => t.toLowerCase());
+  const summary = (doc.ai_summary || '').toLowerCase();
 
   let score = 0;
 
-  // Khớp cụm từ nguyên văn trong câu hỏi với tiêu đề
+  // Khớp cụm từ nguyên văn trong câu hỏi với tiêu đề hoặc tóm tắt
   const cleanQ = fullQuestion.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, ' ').trim();
   if (cleanQ.length >= 4 && title.includes(cleanQ)) {
-    score += 50;
+    score += 60;
+  }
+  if (cleanQ.length >= 6 && summary.includes(cleanQ)) {
+    score += 40;
   }
 
+  // Khớp các cụm từ 2-3 chữ từ câu hỏi (rất chính xác)
+  const phrases = extractPhrases(fullQuestion);
+  for (const ph of phrases) {
+    if (title.includes(ph)) score += 35;
+    if (summary.includes(ph)) score += 20;
+    if (tags.some((t) => t.includes(ph))) score += 25;
+  }
+
+  // Khớp từ khóa riêng lẻ
   for (const kw of keywords) {
     const regex = new RegExp(`(?:^|[^\\p{L}\\p{N}])${kw}(?:[^\\p{L}\\p{N}]|$)`, 'u');
     if (regex.test(title)) {
-      score += 10;
+      score += 8;
     }
     if (tags.some((t) => regex.test(t))) {
       score += 6;
     }
-    if (regex.test(sourceLabel)) {
+    if (regex.test(summary)) {
       score += 4;
+    }
+    if (regex.test(sourceLabel)) {
+      score += 3;
+    }
+  }
+
+  // Cộng điểm ưu tiên cho các thuật ngữ nghiệp vụ y tế / hành chính
+  const keyPhrases = ['thay băng', 'vết thương', 'vết mổ', 'thanh toán', 'mức giá', 'viện phí', 'giá dịch vụ', 'bảo hiểm', 'bhyt', 'khám bệnh', 'chữa bệnh'];
+  for (const kp of keyPhrases) {
+    if (cleanQ.includes(kp)) {
+      if (title.includes(kp)) score += 30;
+      if (summary.includes(kp)) score += 20;
     }
   }
 
@@ -304,6 +354,13 @@ function findBestCitationSentence(docText, question, answer) {
 function extractExactCitation(docText, question, answer, explicitQuote) {
   if (!docText) return '';
 
+  const lowerAns = (answer || '').toLowerCase();
+  const isNegative =
+    lowerAns.includes('không có thông tin') ||
+    lowerAns.includes('không tìm thấy') ||
+    lowerAns.includes('không đề cập') ||
+    lowerAns.includes('chưa có quy định');
+
   if (explicitQuote && explicitQuote.length >= 15) {
     const cleanDoc = docText.toLowerCase().replace(/\s+/g, ' ');
     const cleanQuote = explicitQuote.toLowerCase().replace(/\s+/g, ' ');
@@ -315,11 +372,16 @@ function extractExactCitation(docText, question, answer, explicitQuote) {
     return explicitQuote;
   }
 
-  const bestSentence = findBestCitationSentence(docText, question, answer);
-  if (bestSentence) return bestSentence;
+  // Nếu AI từ chối hoặc trả lời không có thông tin và không có quote rõ ràng -> Không trích dẫn lung tung
+  if (isNegative) {
+    return '';
+  }
 
   const quote = findDirectQuoteSnippet(docText, answer);
   if (quote && !isBoilerplate(quote)) return quote;
+
+  const bestSentence = findBestCitationSentence(docText, question, answer);
+  if (bestSentence) return bestSentence;
 
   return '';
 }
@@ -392,14 +454,20 @@ router.post('/chat', async (req, res) => {
     // Với khung chat toàn cục:
     const isSysQ = isSystemUsageQuestion(question);
     const keywords = extractMeaningfulKeywords(question);
+    const phrases = extractPhrases(question);
 
     let docsWithText = [];
 
     // Chỉ truy vấn tài liệu khi KHÔNG phải câu hỏi thao tác web và có từ khóa nội dung
     if (!isSysQ && keywords.length > 0) {
-      const allDocs = db
-        .prepare('SELECT id, title, source_label, stored_filename, original_filename FROM documents ORDER BY created_at DESC')
+      const allDocsRaw = db
+        .prepare('SELECT id, title, source_label, stored_filename, original_filename, is_public, owner_khoa_id, uploaded_by, ai_summary FROM documents ORDER BY created_at DESC')
         .all();
+
+      // Chỉ lấy các tài liệu người dùng hiện tại có quyền xem
+      const allDocs = allDocsRaw
+        .map((r) => documentWithShares(db, r))
+        .filter((doc) => canViewDocument(req.user, doc));
 
       const allTags = db.prepare('SELECT document_id, tag FROM document_tags').all();
       const tagMap = {};
@@ -408,18 +476,71 @@ router.post('/chat', async (req, res) => {
         tagMap[t.document_id].push(t.tag);
       }
 
-      // Lọc và chỉ giữ các tài liệu đạt ngưỡng điểm tối thiểu (>= 10)
-      const scored = allDocs
+      // 1. Lọc và chấm điểm theo metadata (tiêu đề, nhãn, tóm tắt)
+      let scored = allDocs
         .map((doc) => ({
           ...doc,
           score: scoreDocument(doc, keywords, question, tagMap)
         }))
-        .filter((d) => d.score >= 10);
+        .filter((d) => d.score >= 20);
 
       scored.sort((a, b) => b.score - a.score);
-      const topDocs = scored.slice(0, 3);
+
+      // 2. Quét sâu vào nội dung file thực tế (Excel, Word, PDF...) của các tài liệu:
+      // Kích hoạt khi chưa có tài liệu nào vượt trội (score < 40) hoặc câu hỏi có cụm từ nghiệp vụ quan trọng
+      const topScore = scored.length > 0 ? scored[0].score : 0;
+      if (topScore < 40 && (phrases.length > 0 || keywords.length >= 2)) {
+        const candidateDocs = allDocs.slice(0, 15);
+        for (const doc of candidateDocs) {
+          const filePath = path.join(UPLOAD_ROOT, doc.stored_filename);
+          if (!fs.existsSync(filePath)) continue;
+          try {
+            const text = await extractText(filePath, doc.original_filename);
+            if (!text || text.length < 20) continue;
+            const lowerText = text.toLowerCase();
+            let contentScore = 0;
+
+            for (const ph of phrases) {
+              if (lowerText.includes(ph)) contentScore += 40;
+            }
+
+            if (lowerText.includes('thay băng')) contentScore += 45;
+            if (lowerText.includes('vết thương')) contentScore += 45;
+            if (lowerText.includes('vết mổ')) contentScore += 35;
+            if (lowerText.includes('thanh toán')) contentScore += 25;
+
+            for (const kw of keywords) {
+              if (lowerText.includes(kw)) contentScore += 6;
+            }
+
+            if (contentScore >= 25) {
+              const existing = scored.find((s) => s.id === doc.id);
+              if (existing) {
+                existing.score += contentScore;
+                existing.cachedText = text;
+              } else {
+                scored.push({
+                  ...doc,
+                  score: contentScore,
+                  cachedText: text
+                });
+              }
+            }
+          } catch {
+            // Bỏ qua lỗi đọc file
+          }
+        }
+        scored.sort((a, b) => b.score - a.score);
+      }
+
+      // Giới hạn tối đa 2 tài liệu phù hợp nhất để giữ prompt gọn nhẹ và không vượt hạn mức token
+      const topDocs = scored.slice(0, 2);
 
       for (const doc of topDocs) {
+        if (doc.cachedText) {
+          docsWithText.push({ id: doc.id, title: doc.title, text: doc.cachedText });
+          continue;
+        }
         const filePath = path.join(UPLOAD_ROOT, doc.stored_filename);
         if (!fs.existsSync(filePath)) continue;
         try {
@@ -453,16 +574,23 @@ router.post('/chat', async (req, res) => {
 
     // Hậu kiểm trích dẫn: CHỈ trả về tài liệu thực sự được AI trích dẫn hoặc nhắc đến trong câu trả lời
     const sources = [];
-    for (const d of docsWithText) {
-      const highlight = extractExactCitation(d.text, question, finalAnswer, aiQuote);
-      const isCited = isDocCitedInAnswer(finalAnswer, d) || (highlight && highlight.length >= 20);
+    const lowerAns = finalAnswer.toLowerCase();
+    const isNegative = lowerAns.includes('không có thông tin') || lowerAns.includes('không tìm thấy');
 
-      if (isCited) {
-        sources.push({
-          id: d.id,
-          title: d.title,
-          highlight: highlight || ''
-        });
+    if (!isNegative) {
+      for (const d of docsWithText) {
+        const isMentioned = isDocCitedInAnswer(finalAnswer, d);
+        const directQuote = findDirectQuoteSnippet(d.text, finalAnswer);
+        const hasAiQuote = aiQuote && d.text.toLowerCase().replace(/\s+/g, ' ').includes(aiQuote.toLowerCase().replace(/\s+/g, ' '));
+
+        if (isMentioned || directQuote || hasAiQuote) {
+          const highlight = extractExactCitation(d.text, question, finalAnswer, aiQuote);
+          sources.push({
+            id: d.id,
+            title: d.title,
+            highlight: highlight || directQuote || ''
+          });
+        }
       }
     }
 
